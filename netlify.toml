@@ -1,5 +1,5 @@
 [build]
-  command = "npm run build"
+  command = "pnpm exec vite build"
   publish = "dist"
 
 [[redirects]]
