@@ -18,7 +18,7 @@ export function AboutUsPage() {
               <h1 className="h2 fw-bold text-center mb-4">About Us</h1>
               <div className="row g-4">
                 <div className="col-12 col-md-6">
-                  <div className="card border-0 shadow-sm overflow-hidden" style={{ minHeight: '360px' }}>
+                  <div className="card border-0 shadow-sm overflow-hidden about-us-card">
                     <img
                       src={aboutUsImages[0]}
                       className="card-img-top h-100 w-100"
@@ -28,7 +28,7 @@ export function AboutUsPage() {
                   </div>
                 </div>
                 <div className="col-12 col-md-6">
-                  <div className="card border-0 shadow-sm overflow-hidden" style={{ minHeight: '360px' }}>
+                  <div className="card border-0 shadow-sm overflow-hidden about-us-card">
                     <img
                       src={aboutUsImages[1]}
                       className="card-img-top h-100 w-100"
@@ -46,7 +46,7 @@ export function AboutUsPage() {
               <h2 className="h3 fw-bold text-center mb-4">Mission &amp; Vision</h2>
               <div className="row g-4">
                 <div className="col-12 col-md-6">
-                  <div className="card border-0 shadow-sm overflow-hidden" style={{ minHeight: '360px' }}>
+                  <div className="card border-0 shadow-sm overflow-hidden about-us-card">
                     <img
                       src={aboutUsImages[2]}
                       className="card-img-top h-100 w-100"
@@ -56,7 +56,7 @@ export function AboutUsPage() {
                   </div>
                 </div>
                 <div className="col-12 col-md-6">
-                  <div className="card border-0 shadow-sm overflow-hidden" style={{ minHeight: '360px' }}>
+                  <div className="card border-0 shadow-sm overflow-hidden about-us-card">
                     <img
                       src={aboutUsImages[3]}
                       className="card-img-top h-100 w-100"
@@ -74,7 +74,7 @@ export function AboutUsPage() {
               <h2 className="h3 fw-bold text-center mb-4">About the Owner</h2>
               <div className="row g-4 justify-content-center">
                 <div className="col-12 col-lg-10">
-                  <div className="card border-0 shadow-sm overflow-hidden" style={{ minHeight: '440px' }}>
+                  <div className="card border-0 shadow-sm overflow-hidden about-us-card about-us-card-large">
                     <img
                       src={aboutUsImages[4]}
                       className="card-img-top h-100 w-100"

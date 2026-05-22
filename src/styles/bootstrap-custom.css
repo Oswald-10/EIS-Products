@@ -769,6 +769,35 @@ body {
   margin: 0 0 0.5rem;
 }
 
+.about-us-card {
+  min-height: 360px;
+}
+
+.about-us-card.about-us-card-large {
+  min-height: 440px;
+}
+
+.about-us-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@media (max-width: 767.98px) {
+  .about-us-card,
+  .about-us-card.about-us-card-large {
+    min-height: auto;
+  }
+
+  .about-us-card img {
+    height: 280px;
+  }
+
+  .about-us-card.about-us-card-large img {
+    height: 320px;
+  }
+}
+
 .product-card-price {
   font-size: 1.375rem;
   font-weight: 700;
