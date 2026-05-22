@@ -1,122 +1,90 @@
 import React from 'react';
 
+const aboutUsImages = [
+  new URL('../../assets/images/aboutus/3.png', import.meta.url).href,
+  new URL('../../assets/images/aboutus/4.png', import.meta.url).href,
+  new URL('../../assets/images/aboutus/1.png', import.meta.url).href,
+  new URL('../../assets/images/aboutus/2.png', import.meta.url).href,
+  new URL('../../assets/images/aboutus/5.png', import.meta.url).href,
+];
+
 export function AboutUsPage() {
   return (
     <main className="flex-grow-1">
       <div className="container-lg py-5">
         <div className="row justify-content-center">
-          <div className="col-12 col-lg-8">
-            <div className="text-center mb-5">
-              <h1 className="display-4 fw-bold mb-3">About Us</h1>
-              <p className="lead text-muted">
-                [Placeholder: Company mission and vision statement]
-              </p>
-            </div>
+          <div className="col-12 col-xl-10">
+            <section className="mb-5" style={{ marginTop: '4rem' }}>
+              <h1 className="h2 fw-bold text-center mb-4">About Us</h1>
+              <div className="row g-4">
+                <div className="col-12 col-md-6">
+                  <div className="card border-0 shadow-sm overflow-hidden" style={{ minHeight: '360px' }}>
+                    <img
+                      src={aboutUsImages[0]}
+                      className="card-img-top h-100 w-100"
+                      alt="About us"
+                      style={{ objectFit: 'cover' }}
+                    />
+                  </div>
+                </div>
+                <div className="col-12 col-md-6">
+                  <div className="card border-0 shadow-sm overflow-hidden" style={{ minHeight: '360px' }}>
+                    <img
+                      src={aboutUsImages[1]}
+                      className="card-img-top h-100 w-100"
+                      alt="About us"
+                      style={{ objectFit: 'cover' }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </section>
 
-            <div className="row g-4 mb-5">
-              <div className="col-12 col-md-6">
-                <div className="card h-100 border-0 shadow-sm">
-                  <div className="card-body text-center p-4">
-                    <div className="mb-3">
-                      <i className="bi bi-award-fill text-primary" style={{ fontSize: '3rem' }}></i>
-                    </div>
-                    <h3 className="h5 fw-bold mb-3">Our Story</h3>
-                    <p className="text-muted mb-0">
-                      [Placeholder: Brief history of the company and how it started]
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="col-12 col-md-6">
-                <div className="card h-100 border-0 shadow-sm">
-                  <div className="card-body text-center p-4">
-                    <div className="mb-3">
-                      <i className="bi bi-people-fill text-success" style={{ fontSize: '3rem' }}></i>
-                    </div>
-                    <h3 className="h5 fw-bold mb-3">Our Team</h3>
-                    <p className="text-muted mb-0">
-                      [Placeholder: Information about the team and expertise]
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <hr className="border-dark" />
 
-            <div className="row g-4 mb-5">
-              <div className="col-12 col-md-4">
-                <div className="card h-100 border-0 shadow-sm">
-                  <div className="card-body text-center p-4">
-                    <div className="mb-3">
-                      <i className="bi bi-lightning-charge-fill text-warning" style={{ fontSize: '3rem' }}></i>
-                    </div>
-                    <h3 className="h5 fw-bold mb-3">Quality</h3>
-                    <p className="text-muted mb-0">
-                      [Placeholder: Commitment to quality and standards]
-                    </p>
+            <section className="my-5">
+              <h2 className="h3 fw-bold text-center mb-4">Mission &amp; Vision</h2>
+              <div className="row g-4">
+                <div className="col-12 col-md-6">
+                  <div className="card border-0 shadow-sm overflow-hidden" style={{ minHeight: '360px' }}>
+                    <img
+                      src={aboutUsImages[2]}
+                      className="card-img-top h-100 w-100"
+                      alt="Mission and vision"
+                      style={{ objectFit: 'cover' }}
+                    />
+                  </div>
+                </div>
+                <div className="col-12 col-md-6">
+                  <div className="card border-0 shadow-sm overflow-hidden" style={{ minHeight: '360px' }}>
+                    <img
+                      src={aboutUsImages[3]}
+                      className="card-img-top h-100 w-100"
+                      alt="Mission and vision"
+                      style={{ objectFit: 'cover' }}
+                    />
                   </div>
                 </div>
               </div>
-              <div className="col-12 col-md-4">
-                <div className="card h-100 border-0 shadow-sm">
-                  <div className="card-body text-center p-4">
-                    <div className="mb-3">
-                      <i className="bi bi-heart-fill text-danger" style={{ fontSize: '3rem' }}></i>
-                    </div>
-                    <h3 className="h5 fw-bold mb-3">Customer Satisfaction</h3>
-                    <p className="text-muted mb-0">
-                      [Placeholder: Focus on customer needs and satisfaction]
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="col-12 col-md-4">
-                <div className="card h-100 border-0 shadow-sm">
-                  <div className="card-body text-center p-4">
-                    <div className="mb-3">
-                      <i className="bi bi-globe text-info" style={{ fontSize: '3rem' }}></i>
-                    </div>
-                    <h3 className="h5 fw-bold mb-3">Innovation</h3>
-                    <p className="text-muted mb-0">
-                      [Placeholder: Commitment to innovation and new technologies]
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            </section>
 
-            <div className="text-center">
-              <div className="card border-0 shadow-sm">
-                <div className="card-body p-4">
-                  <h2 className="h4 fw-bold mb-3">Contact Us</h2>
-                  <p className="text-muted mb-3">
-                    [Placeholder: Contact information and how to reach us]
-                  </p>
-                  <div className="row g-3 justify-content-center">
-                    <div className="col-12 col-sm-6 col-md-4">
-                      <div className="text-center">
-                        <i className="bi bi-telephone-fill text-primary mb-2" style={{ fontSize: '1.5rem' }}></i>
-                        <p className="small text-muted mb-0">Phone</p>
-                        <p className="fw-bold">[Placeholder: Phone number]</p>
-                      </div>
-                    </div>
-                    <div className="col-12 col-sm-6 col-md-4">
-                      <div className="text-center">
-                        <i className="bi bi-envelope-fill text-primary mb-2" style={{ fontSize: '1.5rem' }}></i>
-                        <p className="small text-muted mb-0">Email</p>
-                        <p className="fw-bold">[Placeholder: Email address]</p>
-                      </div>
-                    </div>
-                    <div className="col-12 col-sm-6 col-md-4">
-                      <div className="text-center">
-                        <i className="bi bi-geo-alt-fill text-primary mb-2" style={{ fontSize: '1.5rem' }}></i>
-                        <p className="small text-muted mb-0">Location</p>
-                        <p className="fw-bold">[Placeholder: Address]</p>
-                      </div>
-                    </div>
+            <hr className="border-dark" />
+
+            <section className="mt-5">
+              <h2 className="h3 fw-bold text-center mb-4">About the Owner</h2>
+              <div className="row g-4 justify-content-center">
+                <div className="col-12 col-lg-10">
+                  <div className="card border-0 shadow-sm overflow-hidden" style={{ minHeight: '440px' }}>
+                    <img
+                      src={aboutUsImages[4]}
+                      className="card-img-top h-100 w-100"
+                      alt="About the owner"
+                      style={{ objectFit: 'cover' }}
+                    />
                   </div>
                 </div>
               </div>
-            </div>
+            </section>
           </div>
         </div>
       </div>

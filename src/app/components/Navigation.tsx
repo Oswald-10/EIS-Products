@@ -39,10 +39,10 @@ export function Navigation({ onSearchOpen, onPhoneClick }: NavigationProps) {
               <a className="nav-link text-uppercase" href="#home" onClick={closeNav}>Home</a>
             </li>
             <li className="nav-item">
-              <a className="nav-link text-uppercase" href="#drinkware" onClick={closeNav}>Drinkware</a>
+              <a className="nav-link text-uppercase" href="#drinkware" onClick={closeNav}>Drinkwares</a>
             </li>
             <li className="nav-item">
-              <a className="nav-link text-uppercase" href="#kitchenware" onClick={closeNav}>Kitchenware</a>
+              <a className="nav-link text-uppercase" href="#kitchenware" onClick={closeNav}>Kitchenwares</a>
             </li>
             <li className="nav-item">
               <a className="nav-link text-uppercase" href="#umbrellasAndBags" onClick={closeNav}>Umbrellas & Bags</a>
@@ -57,7 +57,10 @@ export function Navigation({ onSearchOpen, onPhoneClick }: NavigationProps) {
               <a className="nav-link text-uppercase" href="#accessories" onClick={closeNav}>Accessories</a>
             </li>
             <li className="nav-item">
-              <a className="nav-link text-uppercase" href="#bundle" onClick={closeNav}>Bundle</a>
+              <a className="nav-link text-uppercase" href="#digital" onClick={closeNav}>Digital & Large Format</a>
+            </li>
+            <li className="nav-item">
+              <a className="nav-link text-uppercase" href="#setsAndBundles" onClick={closeNav}>Sets & Bundles</a>
             </li>
             <li className="nav-item">
               <a className="nav-link text-uppercase" href="#about" onClick={closeNav}>About Us</a>

@@ -1,19 +1,19 @@
 import React from 'react';
 import { CategoryPage, type CategoryPageProps } from './CategoryPage';
 
-const bundleSampleImages = Object.entries(import.meta.glob('/src/assets/images/bundle/*.{png,jpg,jpeg}', { eager: true }) as Record<string, { default: string }>)
+const bundleSampleImages = Object.entries(import.meta.glob('/src/assets/images/bundle/**/*.{png,jpg,jpeg}', { eager: true }) as Record<string, { default: string }> )
   .map(([_, module]) => module.default)
   .filter((src): src is string => typeof src === 'string');
 
-type BundlePageProps = Pick<CategoryPageProps, 'items' | 'onBack'> & {
+type DigitalAndLargeFormatPageProps = Pick<CategoryPageProps, 'items' | 'onBack'> & {
   initialSelectedItemTitle?: string;
 };
 
-export function BundlePage({ items, onBack, initialSelectedItemTitle }: BundlePageProps) {
+export function DigitalAndLargeFormatPage({ items, onBack, initialSelectedItemTitle }: DigitalAndLargeFormatPageProps) {
   return (
     <CategoryPage
-      title="Bundle"
-      subtitle="Flyers, business cards, banners, sintra boards, and tarpaulins for your business."
+      title="Digital & Large Format"
+      subtitle="Notebooks, flyers, business cards, tarpaulins, banners, and more."
       items={items}
       onBack={onBack}
       slideshowTitle="Sample Finished Products"

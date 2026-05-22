@@ -40,11 +40,19 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
+.navbar-dark .navbar-nav {
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+}
+
 .navbar-dark .navbar-nav .nav-link {
-  font-size: 0.875rem;
+  font-size: 0.78rem;
   color: rgba(30, 30, 30, 0.92) !important;
   transition: color 0.3s ease;
-  padding: 0.5rem 1rem !important;
+  padding: 0.35rem 0.75rem !important;
+  white-space: normal;
+  text-align: center;
 }
 
 .navbar-dark .navbar-nav .nav-link:hover,
@@ -85,6 +93,20 @@ body {
   background-color: transparent;
   box-shadow: none;
   transition: all 0.3s ease;
+}
+
+@media (max-width: 767.8px) {
+  .parallax-card {
+    min-height: auto;
+    max-height: none;
+    background-image: url("../assets/images/eisshop-mobile.png") !important;
+    background-size: 100% auto;
+    background-position: top center;
+    background-repeat: no-repeat;
+    height: 400px;
+    aspect-ratio: auto;
+    padding-bottom: 0;
+  }
 }
 
 .parallax-card::before {
@@ -245,6 +267,17 @@ body {
   min-height: auto;
 }
 
+@media (max-width: 767.98px) {
+  .grid-card-short {
+    aspect-ratio: auto;
+    min-height: 260px;
+  }
+
+  .grid-card {
+    min-height: 220px;
+  }
+}
+
 .grid-card-center {
   background: #f8f9fa;
   color: #212529;
@@ -286,6 +319,59 @@ body {
   object-fit: contain;
   margin-bottom: 0;
 }
+
+.caps-carousel-button,
+.caps-slide-control {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(0, 0, 0, 0.3);
+  border: none;
+  color: white;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  z-index: 3;
+}
+
+.caps-carousel-button:hover,
+.caps-slide-control:hover {
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+.caps-carousel-prev,
+.caps-slide-control.prev {
+  left: 1rem;
+}
+
+.caps-carousel-next,
+.caps-slide-control.next {
+  right: 1rem;
+}
+
+@media (max-width: 767.98px) {
+  .caps-carousel-button,
+  .caps-slide-control {
+    width: 44px;
+    height: 44px;
+  }
+
+  .caps-carousel-prev,
+  .caps-slide-control.prev {
+    left: 0.75rem;
+  }
+
+  .caps-carousel-next,
+  .caps-slide-control.next {
+    right: 0.75rem;
+  }
+}
+
 .caps-page {
   margin-top: 56px;
   min-height: calc(100vh - 56px);
@@ -359,12 +445,15 @@ body {
 
 @media (max-width: 767.98px) {
   .caps-modal-overlay {
-    padding: 1rem;
-    align-items: center;
+    padding: 0.5rem;
+    align-items: flex-start;
+    padding-top: 70px;
+    overflow-y: auto;
   }
 
   .caps-modal {
-    margin: auto;
+    margin: 0 auto;
+    max-height: calc(100vh - 90px);
   }
 }
 
@@ -378,6 +467,13 @@ body {
   overflow: hidden;
   position: relative;
   margin: auto;
+}
+
+@media (max-width: 767.98px) {
+  .caps-modal {
+    width: min(100%, 350px);
+    max-width: calc(100% - 1rem);
+  }
 }
 
 .caps-modal-close {
@@ -396,10 +492,26 @@ body {
   display: grid;
   place-items: center;
   transition: background-color 0.15s ease;
+  z-index: 1100;
 }
 
 .caps-modal-close:hover {
   background: rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 767.98px) {
+  .caps-modal-close {
+    width: 2rem;
+    height: 2rem;
+    font-size: 1.25rem;
+    background: rgba(0, 0, 0, 0.15);
+    top: 0.75rem;
+    right: 0.75rem;
+  }
+
+  .caps-modal-close:hover {
+    background: rgba(0, 0, 0, 0.25);
+  }
 }
 
 .caps-modal-body {
