@@ -1,7 +1,7 @@
 import React from 'react';
 import { CategoryPage, type CategoryPageProps } from './CategoryPage';
 
-const notebooksAndPensSampleImages = Object.entries(import.meta.glob('/src/assets/images/notebooksAndPens/*.{png,jpg,jpeg}', { eager: true }) as Record<string, { default: string }>)
+const notebooksAndPensSampleImages = Object.entries(import.meta.glob('/src/assets/images/notebooksAndPens/samples/*.{png,jpg,jpeg}', { eager: true }) as Record<string, { default: string }> )
   .map(([_, module]) => module.default)
   .filter((src): src is string => typeof src === 'string');
 

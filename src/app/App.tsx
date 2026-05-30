@@ -9,8 +9,10 @@ import { UmbrellasAndBagsPage } from './components/UmbrellasAndBagsPage';
 import { CapsAndApparelPage } from './components/CapsAndApparelPage';
 import { NotebooksAndPensPage } from './components/NotebooksAndPensPage';
 import { AccessoriesPage } from './components/AccessoriesPage';
-import { BundlePage } from './components/BundlePage';
+import { DigitalAndLargeFormatPage } from './components/DigitalAndLargeFormatPage';
+import { SetsAndBundlesPage } from './components/SetsAndBundlesPage';
 import { InfoPage } from './components/InfoPage';
+import { AboutUsPage } from './components/AboutUsPage';
 
 const imageModules = import.meta.glob('/src/assets/images/**/*.{png,jpg,jpeg,webp}', { eager: true }) as Record<string, { default: string }>;
 const localImages = Object.fromEntries(
@@ -23,20 +25,94 @@ const localImages = Object.fromEntries(
 ) as Record<string, string>;
 
 const cardImages = {
-  eisBanner: localImages['eisBanner'] ?? 'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=1080&q=80',
+  eisBanner: localImages['eisshop'] ?? 'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=1080&q=80',
   caps: localImages['capsAndApparel/caps/caps'] ?? localImages['capsAndApparel/caps'] ?? 'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=1080&q=80',
   toteBags: localImages['umbrellasAndBags/totebag/toteBags'] ?? localImages['umbrellasAndBags/totebag/toteBags'] ?? 'https://images.unsplash.com/photo-1523299337142-7e2b1f8d3098?auto=format&fit=crop&w=1080&q=80',
-  businessCards: localImages['bundle/businesscard/businessCards'] ?? 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1080&q=80',
+  businessCards: localImages['bundle/businesscard/businesscard'] ?? 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1080&q=80',
   plannersNotebooks: localImages['notebooksAndPens/planner/plannersNotebooks'] ?? 'https://images.unsplash.com/photo-1497032628192-86f99bcd76bc?auto=format&fit=crop&w=1080&q=80',
   tShirts: localImages['capsAndApparel/shirt/tShirts'] ?? 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1080&q=80',
   jackets: localImages['capsAndApparel/jacket/jackets'] ?? 'https://images.unsplash.com/photo-1491553895911-0055eca6402d?auto=format&fit=crop&w=1080&q=80',
   aprons: localImages['capsAndApparel/apron/aprons'] ?? 'https://images.unsplash.com/photo-1545235613-7c2f2b0fe8ca?auto=format&fit=crop&w=1080&q=80',
   tumblers: localImages['drinkware/tumbler/tumblers'] ?? 'https://images.unsplash.com/photo-1545239351-1141bd82e8a6?auto=format&fit=crop&w=1080&q=80',
   pens: localImages['notebooksAndPens/pen/pens'] ?? 'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=1080&q=80',
+  kitchenware: localImages['kitchenware/Wooden Lunchbox'] ?? 'https://images.unsplash.com/photo-1512428559087-560fa5ceab42?auto=format&fit=crop&w=1080&q=80',
+  accessories: localImages['accessories/Wooden Mirror'] ?? 'https://images.unsplash.com/photo-1523266542201-5f22b135f879?auto=format&fit=crop&w=1080&q=80',
 };
 
 const imageFor = (path: string, fallback: string) => localImages[path] ?? fallback;
 
+const colorFromFilename = (rawName: string) => {
+  const candidate = rawName.split(' ').pop()?.toLowerCase() ?? '';
+  const validColors = new Set([
+    'black',
+    'white',
+    'blue',
+    'red',
+    'gray',
+    'grey',
+    'green',
+    'maroon',
+    'pink',
+    'yellow',
+    'orange',
+    'violet',
+    'navy',
+    'brown',
+    'cream',
+    'beige',
+    'tan',
+  ]);
+  return validColors.has(candidate) ? candidate : '#888';
+};
+
+const getColorOptionsFromFolder = (folderPath: string) => {
+  return Object.keys(localImages)
+    .filter((key) => key.startsWith(`${folderPath}/`))
+    .sort()
+    .map((key) => {
+      const fileName = key.slice(folderPath.length + 1);
+      const rawName = fileName.replace(/\.(png|jpe?g|webp)$/i, '').replace(/_/g, ' ');
+      const displayName = rawName
+        .split(/\s+/)
+        .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+        .join(' ');
+      return {
+        name: displayName,
+        hex: colorFromFilename(rawName),
+        image: localImages[key],
+      };
+    });
+};
+
+const firstImageInFolder = (folderPath: string, fallback: string) => {
+  const images = Object.keys(localImages)
+    .filter((key) => key.startsWith(`${folderPath}/`))
+    .sort()
+    .map((key) => localImages[key]);
+  return images[0] ?? fallback;
+};
+
+const imageKeyByUrl = new Map(Object.entries(localImages).map(([key, value]) => [value, key]));
+
+const getGalleryImagesFromImageUrl = (imageUrl: string) => {
+  const imageKey = imageKeyByUrl.get(imageUrl);
+  if (!imageKey) {
+    return [imageUrl];
+  }
+
+  const lastSlash = imageKey.lastIndexOf('/');
+  const folderPath = lastSlash === -1 ? '' : imageKey.slice(0, lastSlash);
+  if (!folderPath) {
+    return [imageUrl];
+  }
+
+  const galleryImages = Object.keys(localImages)
+    .filter((key) => key.startsWith(`${folderPath}/`))
+    .sort()
+    .map((key) => localImages[key]);
+
+  return galleryImages.length > 0 ? galleryImages : [imageUrl];
+};
 
 type SearchEntry = {
   title: string;
@@ -46,6 +122,7 @@ type SearchEntry = {
     title: string;
     subtitle: string;
     image: string;
+    price: string;
     colors?: string[];
     colorOptions?: { name: string; hex: string; image: string }[];
   };
@@ -54,609 +131,857 @@ type SearchEntry = {
 const categories = {
   drinkware: [
     {
-      title: '150mL Pocket Thermos',
+      title: '150ML Pocket Thermos',
       subtitle: 'Compact thermos for on-the-go.',
-      image: imageFor('drinkware/01 - 150mL Pocket Thermos', cardImages.tumblers),
+      image: firstImageInFolder('drinkware/150mL Pocket Thermos', cardImages.tumblers),
+      price: 'PHP 300',
     },
     {
-      title: '250mL Pocket Thermos',
+      title: '250ML Pocket Thermos',
       subtitle: 'Portable thermos for daily use.',
-      image: imageFor('drinkware/02 - 250mL Pocket Thermos', cardImages.tumblers),
+      image: firstImageInFolder('drinkware/250mL Pocket Thermos', cardImages.tumblers),
+      price: 'PHP 325',
     },
     {
-      title: '350mL Mini Cup',
-      subtitle: 'Small cup for quick drinks.',
-      image: imageFor('drinkware/03 - 350mL Mini Cup', cardImages.tumblers),
-    },
-    {
-      title: '350mL Stainless Mug',
+      title: '350ML Stainless Mug',
       subtitle: 'Durable stainless steel mug.',
-      image: imageFor('drinkware/04 - 350mL Stainless Mug', cardImages.tumblers),
+      image: firstImageInFolder('drinkware/350mL Stainless Mug', cardImages.tumblers),
+      price: 'PHP 400',
     },
     {
-      title: '350mL Egg Mug',
-      subtitle: 'Unique egg-shaped mug.',
-      image: imageFor('drinkware/05 - 350mL Egg Mug', cardImages.tumblers),
+      title: '350ML Egg Mug',
+      subtitle: 'Egg-shaped mug with custom printing.',
+      image: firstImageInFolder('drinkware/350mL Egg Mug', cardImages.tumblers),
+      price: 'PHP 400',
     },
     {
-      title: '500mL Tyeso w/ Flat Top',
-      subtitle: 'Stylish thermos with a flat lid.',
-      image: imageFor('drinkware/06 - 500mL Tyeso w Flat Top', cardImages.tumblers),
+      title: '500ML Tyeso w/ Flat Top',
+      subtitle: 'Thermos with flat top lid.',
+      image: firstImageInFolder('drinkware/500mL Tyeso w Flat Top', cardImages.tumblers),
+      price: 'PHP 450',
     },
     {
-      title: '500mL Vacuum Flask Set',
-      subtitle: 'Insulated flask set for hot drinks.',
-      image: imageFor('drinkware/07 - 500mL Vacuum Flask Set', cardImages.tumblers),
-    },
-    {
-      title: '530mL Tyeso w/ Lock',
+      title: '530ML Tyeso w/ Lock',
       subtitle: 'Secure thermos with locking lid.',
-      image: imageFor('drinkware/08 - 530mL Tyeso w Lock', cardImages.tumblers),
+      image: firstImageInFolder('drinkware/530mL Tyeso w Lock', cardImages.tumblers),
+      price: 'PHP 400',
     },
     {
-      title: '750mL Tyeso w/ Lock',
+      title: '750ML Tyeso w/ Lock',
       subtitle: 'Large thermos with secure lock.',
-      image: imageFor('drinkware/09 - 750mL Tyeso w Lock', cardImages.tumblers),
+      image: firstImageInFolder('drinkware/750mL Tyeso w Lock', cardImages.tumblers),
+      price: 'PHP 500',
     },
     {
-      title: '750mL Tyeso w/ Nozzle',
+      title: '750ML Tyeso w/ Nozzle',
       subtitle: 'Thermos with convenient nozzle.',
-      image: imageFor('drinkware/10 - 750mL Tyeso w Nozzle', cardImages.tumblers),
+      image: firstImageInFolder('drinkware/750mL Tyeso w Nozzle', cardImages.tumblers),
+      price: 'PHP 450',
     },
     {
-      title: '750mL Tyeso Bowling',
+      title: '750ML Tyeso Bowling',
       subtitle: 'Fun bowling-themed thermos.',
-      image: imageFor('drinkware/11 - 750mL Tyeso Bowling', cardImages.tumblers),
+      image: firstImageInFolder('drinkware/750mL Tyeso Bowling', cardImages.tumblers),
+      price: 'PHP 555',
     },
     {
-      title: '600mL STR w/ Handle',
-      subtitle: 'Straight thermos with handle.',
-      image: imageFor('drinkware/12 - 600mL STR w Handle', cardImages.tumblers),
+      title: '600ML STR w/ Handle',
+      subtitle: 'Straight tumbler with handle.',
+      image: firstImageInFolder('drinkware/600mL STR w Handle', cardImages.tumblers),
+      price: 'PHP 450',
     },
     {
-      title: '900mL STR w/ Handle',
-      subtitle: 'Large straight thermos.',
-      image: imageFor('drinkware/13 - 900mL STR w Handle', cardImages.tumblers),
+      title: '900ML STR w/ Handle',
+      subtitle: 'Large straight tumbler with handle.',
+      image: firstImageInFolder('drinkware/900mL STR w Handle', cardImages.tumblers),
+      price: 'PHP 500',
     },
     {
-      title: '1200mL STR Tumbler',
-      subtitle: 'Extra large tumbler option.',
-      image: imageFor('drinkware/14 - 1200mL STR Tumbler', cardImages.tumblers),
+      title: '1200ML STR Tumbler',
+      subtitle: 'Extra large straight tumbler.',
+      image: firstImageInFolder('drinkware/1200mL STR Tumbler', cardImages.tumblers),
+      price: 'PHP 555',
     },
     {
-      title: '600mL Frosted Plastic Tumbler',
-      subtitle: 'Frosted plastic for cool drinks.',
-      image: imageFor('drinkware/15 - 600mL Frosted Plastic Tumbler', cardImages.tumblers),
-    },
-    {
-      title: '8oz Hip Flask Set',
-      subtitle: 'Hip flask set with accessories.',
-      image: imageFor('drinkware/16 - 8oz Hip Flask Set', cardImages.tumblers),
+      title: '600ML Frosted Tumbler',
+      subtitle: 'Frosted tumbler for cool drinks.',
+      image: firstImageInFolder('drinkware/600mL Frosted Plastic Tumbler', cardImages.tumblers),
+      price: 'PHP 150',
     },
     {
       title: '8oz Hip Flask',
       subtitle: 'Compact hip flask.',
-      image: imageFor('drinkware/17 - 8oz Hip Flask', cardImages.tumblers),
+      image: firstImageInFolder('drinkware/8oz Hip Flask', cardImages.tumblers),
+      price: 'PHP 200',
     },
     {
       title: 'Hip Flask Set',
-      subtitle: 'Complete hip flask collection.',
-      image: imageFor('drinkware/18 - Hip Flask Set', cardImages.tumblers),
+      subtitle: 'Hip flask set with accessories.',
+      image: firstImageInFolder('drinkware/8oz Hip Flask Set', cardImages.tumblers),
+      price: 'PHP 375 | PHP 400',
     },
     {
       title: 'Beer Mug',
-      subtitle: 'Classic beer mug design.',
-      image: imageFor('drinkware/19 - Beer Mug', cardImages.tumblers),
-    },
-    {
-      title: '600 mL Tumbler',
-      subtitle: 'Standard tumbler size.',
-      image: imageFor('drinkware/20 - 600 mL Tumbler', cardImages.tumblers),
+      subtitle: 'Classic beer mug.',
+      image: firstImageInFolder('drinkware/Beer Mug', cardImages.tumblers),
+      price: 'PHP 450',
     },
     {
       title: 'Wooden Tumbler',
-      subtitle: 'Natural wooden tumbler.',
-      image: imageFor('drinkware/21 - Wooden Tumbler', cardImages.tumblers),
+      subtitle: 'Wooden finish tumbler.',
+      image: firstImageInFolder('drinkware/Wooden Tumbler', cardImages.tumblers),
+      price: 'PHP 500 | PHP 450',
     },
     {
-      title: '350mL Wooden Mug',
-      subtitle: 'Eco-friendly wooden mug.',
-      image: imageFor('drinkware/22 - 350mL Wooden Mug', cardImages.tumblers),
-    },
-    {
-      title: 'Ceramic Mugs',
-      subtitle: 'Elegant ceramic mug collection.',
-      image: imageFor('drinkware/23 - Ceramic Mugs', cardImages.tumblers),
+      title: '350ML Wooden Mug',
+      subtitle: 'Natural wooden mug.',
+      image: firstImageInFolder('drinkware/350mL Wooden Mug', cardImages.tumblers),
+      price: 'PHP 350',
     },
   ],
   kitchenware: [
     {
-      title: 'Wooden Lunchbox',
-      subtitle: 'Natural wooden lunchbox with secure lid.',
-      image: imageFor('kitchenware/24 - Wooden Lunchbox', cardImages.businessCards),
+      title: 'Wooden Lunch Box',
+      subtitle: 'Wooden lunch box with secure lid.',
+      image: firstImageInFolder('kitchenware/Wooden Lunchbox', cardImages.kitchenware),
+      price: 'PHP 350 | PHP 400 | PHP 450',
     },
     {
-      title: '5-Piece Coaster Set',
-      subtitle: 'Set of five decorative coasters.',
-      image: imageFor('kitchenware/25 - 5-Piece Coaster Set', cardImages.businessCards),
+      title: '5Pcs Coaster Set',
+      subtitle: 'Set of five stylish coasters.',
+      image: firstImageInFolder('kitchenware/5-Piece Coaster Set', cardImages.kitchenware),
+      price: 'PHP 550',
     },
     {
       title: 'Cheese Board Set',
-      subtitle: 'Cheese board set with serving accessories.',
-      image: imageFor('kitchenware/26 - Cheese Board Set', cardImages.businessCards),
+      subtitle: 'Cheese board set with serving tools.',
+      image: firstImageInFolder('kitchenware/Cheese Board Set', cardImages.kitchenware),
+      price: 'PHP 400',
     },
     {
       title: 'Cutlery Set w/ Case',
       subtitle: 'Portable cutlery set with protective case.',
-      image: imageFor('kitchenware/27 - Cutlery Set w/ Case', cardImages.businessCards),
+      image: firstImageInFolder('kitchenware/Cutlery Set w Case', cardImages.kitchenware),
+      price: 'PHP 175',
     },
     {
-      title: 'Cutlery Set w/ Canvas Pouch',
-      subtitle: 'Cutlery set with canvas storage pouch.',
-      image: imageFor('kitchenware/28 - Cutlery Set w/ Canvas Pouch', cardImages.businessCards),
+      title: 'Cutlery Set w/ Pouch',
+      subtitle: 'Cutlery set with pouch.',
+      image: firstImageInFolder('kitchenware/Cutlery Set w Canvas Pouch', cardImages.kitchenware),
+      price: 'PHP 150',
     },
     {
-      title: 'Wooden Utensils with Canvas Pouch',
-      subtitle: 'Reusable utensils with a canvas pouch.',
-      image: imageFor('kitchenware/29 - Wooden Utensils with Canvas Pouch', cardImages.businessCards),
+      title: 'Wooden Utensils',
+      subtitle: 'Wooden utensils for everyday kitchen use.',
+      image: firstImageInFolder('kitchenware/Wooden Utensils with Canvas Pouch', cardImages.kitchenware),
+      price: 'PHP 225',
     },
     {
-      title: 'Cheese Knives Set w/ Box',
-      subtitle: 'Specialized cheese knives in a premium box.',
-      image: imageFor('kitchenware/30 - Cheese Knives Set w/ Box', cardImages.businessCards),
+      title: 'Cheese Knives Set',
+      subtitle: 'Cheese knives set for entertaining.',
+      image: firstImageInFolder('kitchenware/Cheese Knives Set w Box', cardImages.kitchenware),
+      price: 'PHP 400',
     },
     {
-      title: 'Keychain Bottle Opener',
-      subtitle: 'Bottle opener attached to a handy keychain.',
-      image: imageFor('kitchenware/31 - Keychain Bottle Opener', cardImages.businessCards),
+      title: 'Bottle Opener',
+      subtitle: 'Bottle opener for beverages.',
+      image: firstImageInFolder('kitchenware/Keychain Bottle Opener', cardImages.kitchenware),
+      price: 'PHP 60 | PHP 80',
     },
     {
       title: 'Wooden Bottle Opener',
-      subtitle: 'Sturdy wooden bottle opener.',
-      image: imageFor('kitchenware/32 - Wooden Bottle Opener', cardImages.businessCards),
+      subtitle: 'Premium wooden bottle opener.',
+      image: firstImageInFolder('kitchenware/Wooden Bottle Opener', cardImages.kitchenware),
+      price: 'PHP 80 | PHP 120',
+    },
+    {
+      title: 'Vacuum Flask Set',
+      subtitle: 'Insulated flask set for hot and cold drinks.',
+      image: imageFor('kitchenware/10 - Vacuum Flask Set', cardImages.kitchenware),
+      price: 'PHP 450',
     },
   ],
   umbrellas: [
-    { title: 'Two Fold Umbrella', subtitle: 'Compact, two-fold umbrella for easy storage.', image: imageFor('umbrellasAndBags/33 - Two Fold Umbrella', cardImages.toteBags) },
-    { title: 'Golf Umbrella', subtitle: 'Large golf umbrella for outdoor use.', image: imageFor('umbrellasAndBags/34 - Golf Umbrella', cardImages.toteBags) },
-    { title: 'Foldable Umbrella', subtitle: 'Compact and portable umbrella.', image: imageFor('umbrellasAndBags/35 - Foldable Umbrella', cardImages.toteBags) },
+    {
+      title: 'Two Fold Umbrella',
+      subtitle: 'Compact two-fold umbrella for easy storage.',
+      image: firstImageInFolder('umbrellasAndBags/Two Fold Umbrella', cardImages.toteBags),
+      price: 'PHP 300',
+    },
+    {
+      title: 'Golf Umbrella',
+      subtitle: 'Large golf umbrella for outdoor use.',
+      image: firstImageInFolder('umbrellasAndBags/Golf Umbrella', cardImages.toteBags),
+      price: 'PHP 350',
+    },
+    {
+      title: 'Foldable Umbrella',
+      subtitle: 'Compact foldable umbrella.',
+      image: firstImageInFolder('umbrellasAndBags/Foldable Umbrella', cardImages.toteBags),
+      price: 'PHP 250',
+    },
   ],
   toteBags: [
-    { title: 'Flat Canvas Tote Bag', subtitle: 'Durable canvas tote bag with wide handles.', image: imageFor('umbrellasAndBags/36 - Flat Canvas Tote Bag', cardImages.toteBags), colors: ['#000000', '#FFFFFF', '#8B4513'] },
-    { title: 'Drawstring Bag', subtitle: 'Lightweight drawstring bag for easy carrying.', image: imageFor('umbrellasAndBags/37 - Drawstring Bag', cardImages.toteBags), colors: ['#000080', '#FFFFFF', '#228B22'] },
-    { title: 'Customized Canvas Tote Bag', subtitle: 'Custom-printed canvas tote bag.', image: imageFor('umbrellasAndBags/38 - Customized Canvas Tote Bag', cardImages.toteBags), colors: ['#000000', '#FFFFFF', '#8B4513'] },
-    { title: 'Customized Canvas Tote Bag (With pockets)', subtitle: 'Canvas tote bag with extra pocket storage.', image: imageFor('umbrellasAndBags/39 - Customized Canvas Tote Bag (With pockets)', cardImages.toteBags), colors: ['#FF4500', '#000000', '#FFD700'] },
-    { title: 'Duffle Bag', subtitle: 'Spacious duffle bag for travel and events.', image: imageFor('umbrellasAndBags/40 - Duffle Bag', cardImages.toteBags), colors: ['#000000', '#FFFFFF', '#8B4513'] },
+    {
+      title: 'Drawstring Bag',
+      subtitle: 'Lightweight drawstring bag.',
+      image: firstImageInFolder('umbrellasAndBags/Drawstring Bag', cardImages.toteBags),
+      price: 'PHP 180',
+    },
+    {
+      title: 'Duffle Bag',
+      subtitle: 'Spacious duffle bag for travel.',
+      image: firstImageInFolder('umbrellasAndBags/Duffle Bag', cardImages.toteBags),
+      price: 'PHP 600',
+    },
+    {
+      title: 'Solid Tote Bag',
+      subtitle: 'Sturdy solid tote bag.',
+      image: firstImageInFolder('umbrellasAndBags/solid totebag', cardImages.toteBags),
+      price: 'PHP 350',
+      colorOptions: [
+        { name: 'Olive Green', hex: '#808000', image: localImages['umbrellasAndBags/solid totebag/18'] },
+        { name: 'Lavender', hex: '#E6E6FA', image: localImages['umbrellasAndBags/solid totebag/19'] },
+        { name: 'Dark Gray', hex: '#4A4A4A', image: localImages['umbrellasAndBags/solid totebag/20'] },
+        { name: 'Burgundy', hex: '#800020', image: localImages['umbrellasAndBags/solid totebag/21'] },
+        { name: 'Navy Blue', hex: '#000080', image: localImages['umbrellasAndBags/solid totebag/22'] },
+        { name: 'Light Gray', hex: '#D3D3D3', image: localImages['umbrellasAndBags/solid totebag/23'] },
+        { name: 'Lime Green', hex: '#32CD32', image: localImages['umbrellasAndBags/solid totebag/24'] },
+        { name: 'Army Green', hex: '#4B5320', image: localImages['umbrellasAndBags/solid totebag/25'] },
+        { name: 'Beige', hex: '#F5F5DC', image: localImages['umbrellasAndBags/solid totebag/26'] },
+        { name: 'Rust', hex: '#B7410E', image: localImages['umbrellasAndBags/solid totebag/27'] },
+        { name: 'Dark Brown', hex: '#654321', image: localImages['umbrellasAndBags/solid totebag/28'] },
+        { name: 'Mustard Yellow', hex: '#FFDB58', image: localImages['umbrellasAndBags/solid totebag/29'] },
+        { name: 'Camel', hex: '#C19A6B', image: localImages['umbrellasAndBags/solid totebag/30'] },
+        { name: 'Taupe', hex: '#483C32', image: localImages['umbrellasAndBags/solid totebag/31'] },
+        { name: 'Red', hex: '#FF0000', image: localImages['umbrellasAndBags/solid totebag/32'] },
+        { name: 'Fuchsia', hex: '#FF00FF', image: localImages['umbrellasAndBags/solid totebag/33'] },
+        { name: 'Yellow', hex: '#FFFF00', image: localImages['umbrellasAndBags/solid totebag/34'] },
+        { name: 'Light Pink', hex: '#FFB6C1', image: localImages['umbrellasAndBags/solid totebag/35'] },
+        { name: 'Dusty Pink', hex: '#DCAE96', image: localImages['umbrellasAndBags/solid totebag/36'] },
+        { name: 'Teal', hex: '#008080', image: localImages['umbrellasAndBags/solid totebag/37'] },
+        { name: 'Mint Green', hex: '#98FF98', image: localImages['umbrellasAndBags/solid totebag/38'] },
+        { name: 'Orange', hex: '#FFA500', image: localImages['umbrellasAndBags/solid totebag/39'] },
+        { name: 'Purple', hex: '#800080', image: localImages['umbrellasAndBags/solid totebag/40'] },
+        { name: 'Royal Blue', hex: '#4169E1', image: localImages['umbrellasAndBags/solid totebag/41'] },
+        { name: 'Khaki', hex: '#F0E68C', image: localImages['umbrellasAndBags/solid totebag/42'] },
+        { name: 'Kelly Green', hex: '#4CBB17', image: localImages['umbrellasAndBags/solid totebag/43'] },
+        { name: 'Cyan', hex: '#00FFFF', image: localImages['umbrellasAndBags/solid totebag/44'] },
+        { name: 'Sky Blue', hex: '#87CEEB', image: localImages['umbrellasAndBags/solid totebag/45'] },
+      ],
+    },
+    {
+      title: 'Combi Tote Bag',
+      subtitle: 'Combination tote bag with panels.',
+      image: firstImageInFolder('umbrellasAndBags/combi totebag', cardImages.toteBags),
+      price: 'PHP 300',
+      colorOptions: [
+        { name: 'Magenta', hex: '#FF00FF', image: localImages['umbrellasAndBags/combi totebag/1'] },
+        { name: 'Yellow', hex: '#FFFF00', image: localImages['umbrellasAndBags/combi totebag/2'] },
+        { name: 'Orange', hex: '#FFA500', image: localImages['umbrellasAndBags/combi totebag/3'] },
+        { name: 'Army Green', hex: '#4B5320', image: localImages['umbrellasAndBags/combi totebag/4'] },
+        { name: 'Light Pink', hex: '#FFB6C1', image: localImages['umbrellasAndBags/combi totebag/5'] },
+        { name: 'Mauve', hex: '#E0B0FF', image: localImages['umbrellasAndBags/combi totebag/6'] },
+        { name: 'Emerald', hex: '#50C878', image: localImages['umbrellasAndBags/combi totebag/7'] },
+        { name: 'Red', hex: '#FF0000', image: localImages['umbrellasAndBags/combi totebag/8'] },
+        { name: 'Blue', hex: '#0000FF', image: localImages['umbrellasAndBags/combi totebag/9'] },
+        { name: 'Sky Blue', hex: '#87CEEB', image: localImages['umbrellasAndBags/combi totebag/10'] },
+        { name: 'Royal Blue', hex: '#4169E1', image: localImages['umbrellasAndBags/combi totebag/11'] },
+        { name: 'Lavender', hex: '#E6E6FA', image: localImages['umbrellasAndBags/combi totebag/12'] },
+        { name: 'Teal', hex: '#008080', image: localImages['umbrellasAndBags/combi totebag/13'] },
+        { name: 'Cyan', hex: '#00FFFF', image: localImages['umbrellasAndBags/combi totebag/14'] },
+        { name: 'Terracotta', hex: '#E2725B', image: localImages['umbrellasAndBags/combi totebag/15'] },
+        { name: 'Camel', hex: '#C19A6B', image: localImages['umbrellasAndBags/combi totebag/16'] },
+        { name: 'Taupe', hex: '#483C32', image: localImages['umbrellasAndBags/combi totebag/17'] },
+        { name: 'Beige', hex: '#F5F5DC', image: localImages['umbrellasAndBags/combi totebag/18'] },
+        { name: 'Light Gray', hex: '#D3D3D3', image: localImages['umbrellasAndBags/combi totebag/19'] },
+        { name: 'Olive', hex: '#808000', image: localImages['umbrellasAndBags/combi totebag/20'] },
+        { name: 'Light Purple', hex: '#D8BFD8', image: localImages['umbrellasAndBags/combi totebag/21'] },
+        { name: 'Mustard', hex: '#FFDB58', image: localImages['umbrellasAndBags/combi totebag/22'] },
+        { name: 'Maroon', hex: '#800000', image: localImages['umbrellasAndBags/combi totebag/23'] },
+        { name: 'Navy Blue', hex: '#000080', image: localImages['umbrellasAndBags/combi totebag/24'] },
+        { name: 'Lime Green', hex: '#32CD32', image: localImages['umbrellasAndBags/combi totebag/25'] },
+        { name: 'Brown', hex: '#8B4513', image: localImages['umbrellasAndBags/combi totebag/26'] },
+        { name: 'Khaki', hex: '#F0E68C', image: localImages['umbrellasAndBags/combi totebag/27'] },
+        { name: 'Dark Gray', hex: '#4A4A4A', image: localImages['umbrellasAndBags/combi totebag/28'] },
+      ],
+    },
+    {
+      title: '2 Tone Tote Bag',
+      subtitle: 'Two-tone tote bag for bold branding.',
+      image: firstImageInFolder('umbrellasAndBags/2tone totebag', cardImages.toteBags),
+      price: 'PHP 380',
+      colorOptions: [
+        { name: 'Red', hex: '#FF0000', image: localImages['umbrellasAndBags/2tone totebag/29'] },
+        { name: 'Light Pink', hex: '#FFB6C1', image: localImages['umbrellasAndBags/2tone totebag/30'] },
+        { name: 'Mauve', hex: '#E0B0FF', image: localImages['umbrellasAndBags/2tone totebag/31'] },
+        { name: 'Green', hex: '#008000', image: localImages['umbrellasAndBags/2tone totebag/32'] },
+        { name: 'Emerald', hex: '#50C878', image: localImages['umbrellasAndBags/2tone totebag/33'] },
+        { name: 'Sky Blue', hex: '#87CEEB', image: localImages['umbrellasAndBags/2tone totebag/34'] },
+        { name: 'Mint Green', hex: '#98FF98', image: localImages['umbrellasAndBags/2tone totebag/35'] },
+        { name: 'Army Green', hex: '#4B5320', image: localImages['umbrellasAndBags/2tone totebag/36'] },
+        { name: 'Cyan', hex: '#00FFFF', image: localImages['umbrellasAndBags/2tone totebag/37'] },
+        { name: 'Yellow', hex: '#FFFF00', image: localImages['umbrellasAndBags/2tone totebag/38'] },
+        { name: 'Royal Blue', hex: '#4169E1', image: localImages['umbrellasAndBags/2tone totebag/39'] },
+        { name: 'Lime Green', hex: '#32CD32', image: localImages['umbrellasAndBags/2tone totebag/40'] },
+        { name: 'Magenta', hex: '#FF00FF', image: localImages['umbrellasAndBags/2tone totebag/41'] },
+        { name: 'Orange', hex: '#FFA500', image: localImages['umbrellasAndBags/2tone totebag/42'] },
+        { name: 'Olive', hex: '#808000', image: localImages['umbrellasAndBags/2tone totebag/43'] },
+        { name: 'Lavender', hex: '#E6E6FA', image: localImages['umbrellasAndBags/2tone totebag/44'] },
+        { name: 'Charcoal', hex: '#36454F', image: localImages['umbrellasAndBags/2tone totebag/45'] },
+        { name: 'Dark Brown', hex: '#654321', image: localImages['umbrellasAndBags/2tone totebag/46'] },
+        { name: 'Beige', hex: '#F5F5DC', image: localImages['umbrellasAndBags/2tone totebag/47'] },
+        { name: 'Maroon', hex: '#800000', image: localImages['umbrellasAndBags/2tone totebag/48'] },
+        { name: 'Navy Blue', hex: '#000080', image: localImages['umbrellasAndBags/2tone totebag/49'] },
+        { name: 'Light Gray', hex: '#D3D3D3', image: localImages['umbrellasAndBags/2tone totebag/50'] },
+        { name: 'Khaki Green', hex: '#BDB76B', image: localImages['umbrellasAndBags/2tone totebag/51'] },
+        { name: 'Taupe', hex: '#483C32', image: localImages['umbrellasAndBags/2tone totebag/52'] },
+        { name: 'Terracotta', hex: '#E2725B', image: localImages['umbrellasAndBags/2tone totebag/53'] },
+        { name: 'Camel', hex: '#C19A6B', image: localImages['umbrellasAndBags/2tone totebag/54'] },
+        { name: 'Indigo', hex: '#4B0082', image: localImages['umbrellasAndBags/2tone totebag/55'] },
+        { name: 'Mustard Yellow', hex: '#FFDB58', image: localImages['umbrellasAndBags/2tone totebag/56'] },
+      ],
+    },
+    {
+      title: 'Leather Tote Bag',
+      subtitle: 'Premium leather-style tote bag.',
+      image: firstImageInFolder('umbrellasAndBags/leather totebag', cardImages.toteBags),
+      price: 'PHP 650',
+      colorOptions: [
+        { name: 'Camel', hex: '#C19A6B', image: localImages['umbrellasAndBags/leather totebag/46'] },
+        { name: 'Charcoal', hex: '#36454F', image: localImages['umbrellasAndBags/leather totebag/47'] },
+        { name: 'Deep Teal', hex: '#014D4E', image: localImages['umbrellasAndBags/leather totebag/48'] },
+        { name: 'Ivory', hex: '#FFFFF0', image: localImages['umbrellasAndBags/leather totebag/49'] },
+        { name: 'Light Pink', hex: '#FFB6C1', image: localImages['umbrellasAndBags/leather totebag/50'] },
+        { name: 'Beige', hex: '#F5F5DC', image: localImages['umbrellasAndBags/leather totebag/51'] },
+        { name: 'Dusty Rose', hex: '#C08081', image: localImages['umbrellasAndBags/leather totebag/52'] },
+        { name: 'Gray', hex: '#808080', image: localImages['umbrellasAndBags/leather totebag/53'] },
+        { name: 'Mint Green', hex: '#98FF98', image: localImages['umbrellasAndBags/leather totebag/54'] },
+        { name: 'Magenta', hex: '#FF00FF', image: localImages['umbrellasAndBags/leather totebag/55'] },
+        { name: 'Terracotta', hex: '#E2725B', image: localImages['umbrellasAndBags/leather totebag/56'] },
+        { name: 'Green', hex: '#008000', image: localImages['umbrellasAndBags/leather totebag/57'] },
+        { name: 'Yellow', hex: '#FFD700', image: localImages['umbrellasAndBags/leather totebag/58'] },
+        { name: 'Navy Blue', hex: '#000080', image: localImages['umbrellasAndBags/leather totebag/59'] },
+        { name: 'Plum', hex: '#8E4585', image: localImages['umbrellasAndBags/leather totebag/60'] },
+        { name: 'Sky Blue', hex: '#87CEEB', image: localImages['umbrellasAndBags/leather totebag/61'] },
+      ],
+    },
   ],
   caps: [
     {
-      title: 'Acid Wash Cap',
-      subtitle: 'Textured acid wash cap for a vintage look.',
-      image: imageFor('capsAndApparel/caps/half acid black', cardImages.caps),
-      colorOptions: [
-        { name: 'Black', hex: '#000000', image: imageFor('capsAndApparel/caps/half acid black', cardImages.caps) },
-        { name: 'Blue', hex: '#0000FF', image: imageFor('capsAndApparel/caps/half acid blue', cardImages.caps) },
-        { name: 'Gray', hex: '#808080', image: imageFor('capsAndApparel/caps/half acid gray', cardImages.caps) },
-        { name: 'Green', hex: '#008000', image: imageFor('capsAndApparel/caps/half acid green', cardImages.caps) },
-        { name: 'Maroon', hex: '#800000', image: imageFor('capsAndApparel/caps/half acid maroon', cardImages.caps) },
-        { name: 'Pink', hex: '#FFC0CB', image: imageFor('capsAndApparel/caps/half acid pink', cardImages.caps) },
-        { name: 'Red', hex: '#FF0000', image: imageFor('capsAndApparel/caps/half acid red', cardImages.caps) },
-        { name: 'Violet', hex: '#8A2BE2', image: imageFor('capsAndApparel/caps/acid wb violet', cardImages.caps) },
-        { name: 'Yellow', hex: '#FFFF00', image: imageFor('capsAndApparel/caps/acid wb yellow', cardImages.caps) },
-      ],
-    },
-    {
-      title: 'Acid Washed Bucket Hat',
-      subtitle: 'Classic CB cap with versatile styling.',
-      image: imageFor('capsAndApparel/caps/acid wb black', cardImages.caps),
-      colorOptions: [
-        { name: 'Black', hex: '#000000', image: imageFor('capsAndApparel/caps/acid wb black', cardImages.caps) },
-        { name: 'Blue', hex: '#0000FF', image: imageFor('capsAndApparel/caps/acid wb blue', cardImages.caps) },
-        { name: 'Gray', hex: '#808080', image: imageFor('capsAndApparel/caps/acid wb gray', cardImages.caps) },
-        { name: 'Green', hex: '#008000', image: imageFor('capsAndApparel/caps/acid wb green', cardImages.caps) },
-        { name: 'Maroon', hex: '#800000', image: imageFor('capsAndApparel/caps/acid wb maroon', cardImages.caps) },
-        { name: 'Pink', hex: '#FFC0CB', image: imageFor('capsAndApparel/caps/acid wb pink', cardImages.caps) },
-        { name: 'Red', hex: '#FF0000', image: imageFor('capsAndApparel/caps/acid wb red', cardImages.caps) },
-        { name: 'White', hex: '#FFFFFF', image: imageFor('capsAndApparel/caps/acid wb white', cardImages.caps) },
-        { name: 'Yellow', hex: '#FFFF00', image: imageFor('capsAndApparel/caps/acid wb yellow', cardImages.caps) },
-      ],
-    },
-    {
-      title: 'Corduroy Cap',
-      subtitle: 'Soft corduroy cap with premium texture.',
-      image: imageFor('capsAndApparel/caps/corduroy black', cardImages.caps),
-      colorOptions: [
-        { name: 'Black', hex: '#000000', image: imageFor('capsAndApparel/caps/corduroy black', cardImages.caps) },
-        { name: 'Blue', hex: '#0000FF', image: imageFor('capsAndApparel/caps/corduroy blue', cardImages.caps) },
-        { name: 'Gray', hex: '#808080', image: imageFor('capsAndApparel/caps/corduroy gray', cardImages.caps) },
-        { name: 'Green', hex: '#008000', image: imageFor('capsAndApparel/caps/corduroy green', cardImages.caps) },
-        { name: 'Maroon', hex: '#800000', image: imageFor('capsAndApparel/caps/corduroy maroon', cardImages.caps) },
-        { name: 'Pink', hex: '#FFC0CB', image: imageFor('capsAndApparel/caps/corduroy pink', cardImages.caps) },
-        { name: 'Red', hex: '#FF0000', image: imageFor('capsAndApparel/caps/corduroy red', cardImages.caps) },
-        { name: 'White', hex: '#FFFFFF', image: imageFor('capsAndApparel/caps/corduroy white', cardImages.caps) },
-        { name: 'Yellow', hex: '#FFFF00', image: imageFor('capsAndApparel/caps/corduroy yellow', cardImages.caps) },
-      ],
-    },
-    {
       title: 'Cotton Cap',
       subtitle: 'Clean cotton cap for everyday wear.',
-      image: imageFor('capsAndApparel/caps/cotton black', cardImages.caps),
-      colorOptions: [
-        { name: 'Black', hex: '#000000', image: imageFor('capsAndApparel/caps/cotton black', cardImages.caps) },
-        { name: 'Blue', hex: '#0000FF', image: imageFor('capsAndApparel/caps/cotton blue', cardImages.caps) },
-        { name: 'Gray', hex: '#808080', image: imageFor('capsAndApparel/caps/cotton gray', cardImages.caps) },
-        { name: 'Green', hex: '#008000', image: imageFor('capsAndApparel/caps/cotton green', cardImages.caps) },
-        { name: 'Maroon', hex: '#800000', image: imageFor('capsAndApparel/caps/cotton maroon', cardImages.caps) },
-        { name: 'Pink', hex: '#FFC0CB', image: imageFor('capsAndApparel/caps/cotton pink', cardImages.caps) },
-        { name: 'Red', hex: '#FF0000', image: imageFor('capsAndApparel/caps/cotton red', cardImages.caps) },
-        { name: 'White', hex: '#FFFFFF', image: imageFor('capsAndApparel/caps/cotton white', cardImages.caps) },
-        { name: 'Yellow', hex: '#FFFF00', image: imageFor('capsAndApparel/caps/cotton yellow', cardImages.caps) },
-      ],
+      image: firstImageInFolder('capsAndApparel/caps/cottoncap', cardImages.caps),
+      price: 'PHP 200',
+      colorOptions: getColorOptionsFromFolder('capsAndApparel/caps/cottoncap'),
+    },
+    {
+      title: 'Acid Washed Caps',
+      subtitle: 'Acid washed cap with vintage appeal.',
+      image: firstImageInFolder('capsAndApparel/caps/acidwashedcap', cardImages.caps),
+      price: 'PHP 225',
+      colorOptions: getColorOptionsFromFolder('capsAndApparel/caps/acidwashedcap'),
+    },
+    {
+      title: 'Corduroy Hat',
+      subtitle: 'Corduroy hat with premium texture.',
+      image: firstImageInFolder('capsAndApparel/caps/corduroycap', cardImages.caps),
+      price: 'PHP 225',
+      colorOptions: getColorOptionsFromFolder('capsAndApparel/caps/corduroycap'),
+    },
+    {
+      title: '1 Tone Trucker Cap',
+      subtitle: 'Structured 1 tone trucker cap with mesh back.',
+      image: firstImageInFolder('capsAndApparel/caps/trucker1cap', cardImages.caps),
+      price: 'PHP 225',
+      colorOptions: getColorOptionsFromFolder('capsAndApparel/caps/trucker1cap'),
+    },
+    {
+      title: '2 Tone Trucker Cap',
+      subtitle: 'Structured 2 tone trucker cap with mesh back.',
+      image: firstImageInFolder('capsAndApparel/caps/trucker2cap', cardImages.caps),
+      price: 'PHP 225',
+      colorOptions: getColorOptionsFromFolder('capsAndApparel/caps/trucker2cap'),
     },
     {
       title: 'Corduroy Bucket Hat',
-      subtitle: 'Classic G cap with bold styling.',
-      image: imageFor('capsAndApparel/caps/cb black', cardImages.caps),
-      colorOptions: [
-        { name: 'Black', hex: '#000000', image: imageFor('capsAndApparel/caps/cb black', cardImages.caps) },
-        { name: 'Blue', hex: '#0000FF', image: imageFor('capsAndApparel/caps/cb navy blue', cardImages.caps) },
-        { name: 'Gray', hex: '#808080', image: imageFor('capsAndApparel/caps/cb gray', cardImages.caps) },
-        { name: 'Green', hex: '#008000', image: imageFor('capsAndApparel/caps/cb green', cardImages.caps) },
-        { name: 'Maroon', hex: '#800000', image: imageFor('capsAndApparel/caps/cb maroon', cardImages.caps) },
-        { name: 'Pink', hex: '#FFC0CB', image: imageFor('capsAndApparel/caps/cb pink', cardImages.caps) },
-        { name: 'Red', hex: '#FF0000', image: imageFor('capsAndApparel/caps/cb red', cardImages.caps) },
-        { name: 'White', hex: '#FFFFFF', image: imageFor('capsAndApparel/caps/cb white', cardImages.caps) },
-        { name: 'Yellow', hex: '#FFFF00', image: imageFor('capsAndApparel/caps/cb yellow', cardImages.caps) },
-      ],
+      subtitle: 'Corduroy Bucket hat with premium texture.',
+      image: firstImageInFolder('capsAndApparel/caps/corduroybh', cardImages.caps),
+      price: 'PHP 225',
+      colorOptions: getColorOptionsFromFolder('capsAndApparel/caps/corduroybh'),
     },
     {
-      title: 'Golf Cap',
-      subtitle: 'Half acid cap with unique design.',
-      image: imageFor('capsAndApparel/caps/gcap black', cardImages.caps),
-      colorOptions: [
-        { name: 'Black', hex: '#000000', image: imageFor('capsAndApparel/caps/gcap black', cardImages.caps) },
-        { name: 'Blue', hex: '#0000FF', image: imageFor('capsAndApparel/caps/gcap blue', cardImages.caps) },
-        { name: 'Gray', hex: '#808080', image: imageFor('capsAndApparel/caps/gcap gray', cardImages.caps) },
-        { name: 'Green', hex: '#008000', image: imageFor('capsAndApparel/caps/gcap green', cardImages.caps) },
-        { name: 'Maroon', hex: '#800000', image: imageFor('capsAndApparel/caps/gcap maroon', cardImages.caps) },
-        { name: 'Pink', hex: '#FFC0CB', image: imageFor('capsAndApparel/caps/gcap pink', cardImages.caps) },
-        { name: 'Red', hex: '#FF0000', image: imageFor('capsAndApparel/caps/gcap red', cardImages.caps) },
-        { name: 'White', hex: '#FFFFFF', image: imageFor('capsAndApparel/caps/gcap white', cardImages.caps) },
-        { name: 'Yellow', hex: '#FFFF00', image: imageFor('capsAndApparel/caps/gcap yellow', cardImages.caps) },
-      ],
-    },
-    {
-      title: 'Trucker Cap 1-Tone',
-      subtitle: 'Breathable trucker cap with mesh back.',
-      image: imageFor('capsAndApparel/caps/trucker1 black', cardImages.caps),
-      colorOptions: [
-        { name: 'Black', hex: '#000000', image: imageFor('capsAndApparel/caps/trucker1 black', cardImages.caps) },
-        { name: 'Blue', hex: '#0000FF', image: imageFor('capsAndApparel/caps/trucker1 blue', cardImages.caps) },
-        { name: 'Gray', hex: '#808080', image: imageFor('capsAndApparel/caps/trucker1 gray', cardImages.caps) },
-        { name: 'Green', hex: '#008000', image: imageFor('capsAndApparel/caps/trucker1 green', cardImages.caps) },
-        { name: 'Maroon', hex: '#800000', image: imageFor('capsAndApparel/caps/trucker1 maroon', cardImages.caps) },
-        { name: 'Pink', hex: '#FFC0CB', image: imageFor('capsAndApparel/caps/trucker1 pink', cardImages.caps) },
-        { name: 'Red', hex: '#FF0000', image: imageFor('capsAndApparel/caps/trucker1 red', cardImages.caps) },
-        { name: 'White', hex: '#FFFFFF', image: imageFor('capsAndApparel/caps/trucker1 white', cardImages.caps) },
-        { name: 'Yellow', hex: '#FFFF00', image: imageFor('capsAndApparel/caps/trucker1 yellow', cardImages.caps) },
-      ],
-    },
-    {
-      title: 'Trucker Cap 2-Tone',
-      subtitle: 'Structured trucker cap with snapback.',
-      image: imageFor('capsAndApparel/caps/trucker2 black', cardImages.caps),
-      colorOptions: [
-        { name: 'Black', hex: '#000000', image: imageFor('capsAndApparel/caps/trucker2 black', cardImages.caps) },
-        { name: 'Blue', hex: '#0000FF', image: imageFor('capsAndApparel/caps/trucker2 blue', cardImages.caps) },
-        { name: 'Gray', hex: '#808080', image: imageFor('capsAndApparel/caps/trucker2 gray', cardImages.caps) },
-        { name: 'Green', hex: '#008000', image: imageFor('capsAndApparel/caps/trucker2 green', cardImages.caps) },
-        { name: 'Maroon', hex: '#800000', image: imageFor('capsAndApparel/caps/trucker2 maroon', cardImages.caps) },
-        { name: 'Pink', hex: '#FFC0CB', image: imageFor('capsAndApparel/caps/trucker2 pink', cardImages.caps) },
-        { name: 'Red', hex: '#FF0000', image: imageFor('capsAndApparel/caps/trucker2 red', cardImages.caps) },
-        { name: 'Violet', hex: '#8A2BE2', image: imageFor('capsAndApparel/caps/trucker2 violet', cardImages.caps) },
-        { name: 'Yellow', hex: '#FFFF00', image: imageFor('capsAndApparel/caps/trucker2 yellow', cardImages.caps) },
-      ],
+      title: 'Acid Washed Bucket Hat',
+      subtitle: 'Acid washed bucket hat with vintage appeal.',
+      image: firstImageInFolder('capsAndApparel/caps/acidwashedbh', cardImages.caps),
+      price: 'PHP 225',
+      colorOptions: getColorOptionsFromFolder('capsAndApparel/caps/acidwashedbh'),
     },
     {
       title: 'Cotton Bucket Hat',
-      subtitle: 'Cotton bucket hat with solid construction.',
-      image: imageFor('capsAndApparel/caps/cottonb black', cardImages.caps),
-      colorOptions: [
-        { name: 'Black', hex: '#000000', image: imageFor('capsAndApparel/caps/cottonb black', cardImages.caps) },
-        { name: 'Blue', hex: '#0000FF', image: imageFor('capsAndApparel/caps/cottonb blue', cardImages.caps) },
-        { name: 'Gray', hex: '#808080', image: imageFor('capsAndApparel/caps/cottonb gray', cardImages.caps) },
-        { name: 'Green', hex: '#008000', image: imageFor('capsAndApparel/caps/cottonb green', cardImages.caps) },
-        { name: 'Maroon', hex: '#800000', image: imageFor('capsAndApparel/caps/cottonb maroon', cardImages.caps) },
-        { name: 'Pink', hex: '#FFC0CB', image: imageFor('capsAndApparel/caps/cottonb pink', cardImages.caps) },
-        { name: 'Red', hex: '#FF0000', image: imageFor('capsAndApparel/caps/cottonb red', cardImages.caps) },
-        { name: 'White', hex: '#FFFFFF', image: imageFor('capsAndApparel/caps/cottonb white', cardImages.caps) },
-        { name: 'Yellow', hex: '#FFFF00', image: imageFor('capsAndApparel/caps/cottonb yellow', cardImages.caps) },
-      ],
+      subtitle: 'Comfortable cotton bucket hat.',
+      image: firstImageInFolder('capsAndApparel/caps/cottonbh', cardImages.caps),
+      price: 'PHP 225',
+      colorOptions: getColorOptionsFromFolder('capsAndApparel/caps/cottonbh'),
+    },
+    {
+      title: 'Golf Cap',
+      subtitle: 'Classic golf cap for outdoor events.',
+      image: firstImageInFolder('capsAndApparel/caps/golfcap', cardImages.caps),
+      price: 'PHP 225',
+      colorOptions: getColorOptionsFromFolder('capsAndApparel/caps/golfcap'),
     },
   ],
   shirts: [
     {
       title: 'Round Neck Shirt',
       subtitle: 'Classic round neck shirt for everyday wear.',
-      image: imageFor('capsAndApparel/41 - Round Neck Shirt', cardImages.tShirts),
+      image: imageFor('capsAndApparel/shirt/4', cardImages.tShirts),
+      price: 'PHP 325',
     },
     {
-      title: 'Roundneck Dri-fit Shirt',
+      title: 'Round Dri-Fit Shirt',
       subtitle: 'Breathable dri-fit shirt for active use.',
-      image: imageFor('capsAndApparel/42 - Roundneck Dri-fit Shirt', cardImages.tShirts),
+      image: imageFor('capsAndApparel/shirt/tShirts', cardImages.tShirts),
+      price: 'PHP 375',
     },
     {
       title: 'Honeycomb Polo Shirt',
-      subtitle: 'Smart polo shirt with honeycomb texture.',
-      image: imageFor('capsAndApparel/44 - Honeycomb Polo Shirt', cardImages.tShirts),
+      subtitle: 'Honeycomb polo shirt for a smart look.',
+      image: imageFor('capsAndApparel/polo shirt/0', cardImages.tShirts),
+      price: 'PHP 425',
+      colorOptions: [
+        { name: 'Teal', hex: '#008080', image: imageFor('capsAndApparel/polo shirt/1', cardImages.tShirts) },
+        { name: 'Black', hex: '#000000', image: imageFor('capsAndApparel/polo shirt/2', cardImages.tShirts) },
+        { name: 'Mustard Yellow', hex: '#FFDB58', image: imageFor('capsAndApparel/polo shirt/3', cardImages.tShirts) },
+        { name: 'Orange', hex: '#FFA500', image: imageFor('capsAndApparel/polo shirt/4', cardImages.tShirts) },
+        { name: 'White', hex: '#FFFFFF', image: imageFor('capsAndApparel/polo shirt/5', cardImages.tShirts) },
+        { name: 'Royal Blue', hex: '#4169E1', image: imageFor('capsAndApparel/polo shirt/6', cardImages.tShirts) },
+        { name: 'Navy Blue', hex: '#000080', image: imageFor('capsAndApparel/polo shirt/7', cardImages.tShirts) },
+        { name: 'Yellow', hex: '#FFFF00', image: imageFor('capsAndApparel/polo shirt/8', cardImages.tShirts) },
+        { name: 'Hot Pink', hex: '#FF69B4', image: imageFor('capsAndApparel/polo shirt/9', cardImages.tShirts) },
+        { name: 'Red', hex: '#FF0000', image: imageFor('capsAndApparel/polo shirt/10', cardImages.tShirts) },
+        { name: 'Turquoise', hex: '#40E0D0', image: imageFor('capsAndApparel/polo shirt/11', cardImages.tShirts) },
+        { name: 'Purple', hex: '#800080', image: imageFor('capsAndApparel/polo shirt/12', cardImages.tShirts) },
+        { name: 'Cream', hex: '#FFFDD0', image: imageFor('capsAndApparel/polo shirt/13', cardImages.tShirts) },
+        { name: 'Maroon', hex: '#800000', image: imageFor('capsAndApparel/polo shirt/14', cardImages.tShirts) },
+        { name: 'Sky Blue', hex: '#87CEEB', image: imageFor('capsAndApparel/polo shirt/15', cardImages.tShirts) },
+        { name: 'Sapphire Blue', hex: '#0F52BA', image: imageFor('capsAndApparel/polo shirt/16', cardImages.tShirts) },
+        { name: 'Emerald Green', hex: '#50C878', image: imageFor('capsAndApparel/polo shirt/17', cardImages.tShirts) },
+      ],
     },
   ],
   aprons: [
     {
-      title: 'Customized Apron',
+      title: 'Apron',
       subtitle: 'Durable custom apron for kitchen or catering staff.',
-      image: imageFor('capsAndApparel/43 - Customized Apron', cardImages.aprons),
+      image: imageFor('capsAndApparel/apron/aprons', cardImages.aprons),
+      price: 'PHP 450',
     },
   ],
   hoodies: [
     {
       title: 'Hoodies',
       subtitle: 'Cozy hoodies with custom branding options.',
-      image: imageFor('capsAndApparel/46 - Hoodies', cardImages.tShirts),
+      image: imageFor('capsAndApparel/hoodie/hoodie', cardImages.tShirts),
+      price: 'PHP 700',
     },
   ],
   jackets: [
     {
       title: 'Corporate Jacket',
       subtitle: 'Professional jacket suitable for corporate uniforms.',
-      image: imageFor('capsAndApparel/45 - Corporate Jacket', cardImages.jackets),
+      image: imageFor('capsAndApparel/jacket/Corporate Jacket', cardImages.jackets),
+      price: 'PHP 900',
     },
   ],
   notebooks: [
     {
-      title: 'A5 Moleskin Notebook (100 leaves)',
-      subtitle: 'Premium moleskin notebook.',
-      image: imageFor('notebooksAndPens/47 - A5 Moleskin Notebook (100 leaves)', cardImages.plannersNotebooks),
-    },
-    {
-      title: 'A5 Moleskin Notebook (150 leaves)',
-      subtitle: 'Extended notebook with 150 leaves.',
-      image: imageFor('notebooksAndPens/48 - A5 Moleskin Notebook (150 leaves)', cardImages.plannersNotebooks),
+      title: 'A5 Moleskin Notebook',
+      subtitle: 'Premium notebook with a stylish cover.',
+      image: firstImageInFolder('notebooksAndPens/A5 Moleskin Notebook', cardImages.plannersNotebooks),
+      price: 'PHP 200 | PHP 225',
     },
     {
       title: 'A5 Notebook w/ Pen',
       subtitle: 'Notebook with included pen.',
-      image: imageFor('notebooksAndPens/57 - A5 Notebook w Pen', cardImages.plannersNotebooks),
-    },
-    {
-      title: 'Phone Stand',
-      subtitle: 'Convenient phone stand.',
-      image: imageFor('notebooksAndPens/58 - Phone Stand', cardImages.plannersNotebooks),
+      image: firstImageInFolder('notebooksAndPens/A5 Notebook w Pen', cardImages.plannersNotebooks),
+      price: 'PHP 275',
     },
     {
       title: 'Pocket Notebook',
-      subtitle: 'Small portable notebook.',
-      image: imageFor('notebooksAndPens/60 - Pocket Notebook', cardImages.plannersNotebooks),
+      subtitle: 'Compact notebook for notes on the go.',
+      image: firstImageInFolder('notebooksAndPens/Pocket Notebook', cardImages.plannersNotebooks),
+      price: 'PHP 125',
+    },
+    {
+      title: 'Phone Stand',
+      subtitle: 'Desk phone stand for easy viewing.',
+      image: firstImageInFolder('notebooksAndPens/Phone Stand', cardImages.plannersNotebooks),
+      price: 'PHP 70',
     },
   ],
   pens: [
     {
-      title: 'Bamboo Ballpen',
+      title: 'Bamboo Pen',
       subtitle: 'Eco-friendly bamboo pen.',
-      image: imageFor('notebooksAndPens/49 - Bamboo Ballpen', cardImages.pens),
+      image: firstImageInFolder('notebooksAndPens/Bamboo Pen', cardImages.pens),
+      price: 'PHP 50',
     },
     {
       title: 'Golf Pen w/ Case',
-      subtitle: 'Golf-themed pen with case.',
-      image: imageFor('notebooksAndPens/50 - Golf Pen w Case', cardImages.pens),
+      subtitle: 'Premium golf pen with case.',
+      image: firstImageInFolder('notebooksAndPens/Golf Pen w Case', cardImages.pens),
+      price: 'PHP 400',
     },
     {
-      title: 'Silver Plastic Ballpen',
+      title: 'Silver Plastic Pen',
       subtitle: 'Classic silver plastic pen.',
-      image: imageFor('notebooksAndPens/51 - Silver Plastic Ballpen', cardImages.pens),
+      image: firstImageInFolder('notebooksAndPens/Silver Plastic Pen', cardImages.pens),
+      price: 'PHP 35',
     },
     {
-      title: 'Retractable Metal Ballpen',
+      title: 'Retractable Metal Pen',
       subtitle: 'Retractable metal pen.',
-      image: imageFor('notebooksAndPens/52 - Retractable Metal Ballpen', cardImages.pens),
+      image: firstImageInFolder('notebooksAndPens/Retractable Metal Pen', cardImages.pens),
+      price: 'PHP 60',
     },
     {
-      title: 'Plastic Ballpen w/ Stylus',
+      title: 'Plastic Pen w/ Stylus',
       subtitle: 'Pen with stylus for touchscreens.',
-      image: imageFor('notebooksAndPens/53 - Plastic Ballpen w Stylus', cardImages.pens),
+      image: firstImageInFolder('notebooksAndPens/Plastic Pen w Stylus', cardImages.pens),
+      price: 'PHP 35',
     },
     {
-      title: 'Gold Metal Ballpen',
-      subtitle: 'Elegant gold metal pen.',
-      image: imageFor('notebooksAndPens/54 - Gold Metal Ballpen', cardImages.pens),
+      title: 'Gold Metal Pen',
+      subtitle: 'Premium gold metal pen.',
+      image: firstImageInFolder('notebooksAndPens/Gold Metal Pen', cardImages.pens),
+      price: 'PHP 60',
     },
     {
-      title: 'Plastic Pen w/ Sleeve',
-      subtitle: 'Pen with protective sleeve.',
-      image: imageFor('notebooksAndPens/55 - Plastic Pen w Sleeve', cardImages.pens),
+      title: 'Plastic Pen w/ Sleeves',
+      subtitle: 'Pen with protective sleeves.',
+      image: firstImageInFolder('notebooksAndPens/Plastic Pen w Sleeves', cardImages.pens),
+      price: 'PHP 50',
     },
     {
       title: 'Sign Pen w/ Case',
       subtitle: 'Signature pen with case.',
-      image: imageFor('notebooksAndPens/56 - Sign Pen w Case', cardImages.pens),
-    },
-    {
-      title: 'Bamboo Pen w/ Case',
-      subtitle: 'Bamboo pen with case.',
-      image: imageFor('notebooksAndPens/59 - Bamboo Pen w Case', cardImages.pens),
+      image: firstImageInFolder('notebooksAndPens/Sign Pen w Case', cardImages.pens),
+      price: 'PHP 275',
     },
     {
       title: 'Desk Pen',
       subtitle: 'Professional desk pen.',
-      image: imageFor('notebooksAndPens/61 - Desk Pen', cardImages.pens),
+      image: firstImageInFolder('notebooksAndPens/Desk Pen', cardImages.pens),
+      price: 'PHP 80',
     },
   ],
   planners: [],
   accessories: [
     {
       title: 'Wooden Mirror',
-      subtitle: 'Elegant wooden mirror.',
-      image: imageFor('accessories/62 - Wooden Mirror', cardImages.businessCards),
+      subtitle: 'Wooden mirror with custom engraving.',
+      image: firstImageInFolder('accessories/Wooden Mirror', cardImages.accessories),
+      price: 'PHP 80',
     },
     {
       title: 'Wooden Lamp',
       subtitle: 'Decorative wooden lamp.',
-      image: imageFor('accessories/63 - Wooden Lamp', cardImages.businessCards),
+      image: firstImageInFolder('accessories/Wooden Lamp', cardImages.accessories),
+      price: 'PHP 225',
     },
     {
       title: 'Wooden Keychain',
       subtitle: 'Wooden keychain accessory.',
-      image: imageFor('accessories/64 - Wooden Keychain', cardImages.businessCards),
+      image: firstImageInFolder('accessories/Wooden Keychain', cardImages.accessories),
+      price: 'PHP 80',
     },
     {
       title: 'Wooden Clock',
-      subtitle: 'Functional wooden clock.',
-      image: imageFor('accessories/65 - Wooden Clock', cardImages.businessCards),
+      subtitle: 'Wooden clock with custom engraving.',
+      image: firstImageInFolder('accessories/Wooden Clock', cardImages.accessories),
+      price: 'PHP 300 | PHP 375',
     },
     {
       title: 'Wooden Hairbrush',
       subtitle: 'Natural wooden hairbrush.',
-      image: imageFor('accessories/66 - Wooden Hairbrush', cardImages.businessCards),
+      image: firstImageInFolder('accessories/Wooden Hairbrush', cardImages.accessories),
+      price: 'PHP 120 | PHP 180',
     },
     {
       title: 'Wooden Comb',
-      subtitle: 'Sturdy wooden comb.',
-      image: imageFor('accessories/67 - Wooden Comb', cardImages.businessCards),
+      subtitle: 'Stylish wooden comb.',
+      image: firstImageInFolder('accessories/Wooden Comb', cardImages.accessories),
+      price: 'PHP 80',
     },
     {
-      title: 'Wooden USB Flash drive with Case (8GB)',
+      title: 'Wooden USB w/ Case',
       subtitle: 'Wooden USB drive with case.',
-      image: imageFor('accessories/68 - Wooden USB Flash drive with Case (8GB)', cardImages.businessCards),
+      image: firstImageInFolder('accessories/Wooden USB Flash drive with Case (8GB)', cardImages.accessories),
+      price: 'PHP 400',
     },
     {
-      title: 'USB Flash drive with Metal Case (8GB)',
-      subtitle: 'Metal-cased USB drive.',
-      image: imageFor('accessories/69 - USB Flash drive with Metal Case (8GB)', cardImages.businessCards),
+      title: 'USB w/ Metal Case',
+      subtitle: 'Metal USB drive with case.',
+      image: firstImageInFolder('accessories/USB Flash drive with Metal Case (8GB)', cardImages.accessories),
+      price: 'PHP 500',
     },
     {
       title: 'Compact Mirror',
       subtitle: 'Portable compact mirror.',
-      image: imageFor('accessories/70 - Compact Mirror', cardImages.businessCards),
+      image: firstImageInFolder('accessories/Compact Mirror', cardImages.accessories),
+      price: 'PHP 120',
     },
     {
-      title: 'Foldable Fans',
-      subtitle: 'Portable foldable fans.',
-      image: imageFor('accessories/71 - Foldable Fans', cardImages.businessCards),
+      title: 'Foldable Fan',
+      subtitle: 'Foldable fan for travel.',
+      image: firstImageInFolder('accessories/Foldable Fans', cardImages.accessories),
+      price: 'PHP 45',
     },
     {
-      title: 'Chess Board w/ Wine Accessories',
-      subtitle: 'Chess board with wine accessories.',
-      image: imageFor('accessories/72 - Chess Board w Wine Accessories', cardImages.businessCards),
+      title: 'Mini Fan',
+      subtitle: 'Compact mini fan.',
+      image: firstImageInFolder('accessories/Mini Portable Fans', cardImages.accessories),
+      price: 'PHP 150',
     },
     {
-      title: 'Mini Portable Fans',
-      subtitle: 'Compact portable fans.',
-      image: imageFor('accessories/73 - Mini Portable Fans', cardImages.businessCards),
+      title: 'Chess Board',
+      subtitle: 'Chess board set for events.',
+      image: firstImageInFolder('accessories/Chess Board w Wine Accessories', cardImages.accessories),
+      price: 'PHP 400',
     },
     {
-      title: '8.5 x 3.5 inches Canvas Pouch',
-      subtitle: 'Canvas pouch for small essentials.',
-      image: imageFor('accessories/74 - 8.5 x 3.5 inches Canvas Pouch', cardImages.businessCards),
+      title: 'Card Holder',
+      subtitle: 'Card holder accessory.',
+      image: firstImageInFolder('accessories/Card Holder', cardImages.accessories),
+      price: 'PHP 200',
+    },
+    {
+      title: 'Canvas Pouch',
+      subtitle: 'Canvas pouch for essentials.',
+      image: firstImageInFolder('accessories/8.5 x 3.5 inches Canvas Pouch', cardImages.accessories),
+      price: 'PHP 120',
     },
     {
       title: 'PVC Bag Tag',
-      subtitle: 'Durable PVC bag tag.',
-      image: imageFor('accessories/75 - PVC Bag Tag', cardImages.businessCards),
+      subtitle: 'PVC bag tag for bags.',
+      image: firstImageInFolder('accessories/PVC Bag Tag', cardImages.accessories),
+      price: 'PHP 225',
     },
     {
-      title: 'Acrylic Name Plate',
-      subtitle: 'Professional acrylic name plate.',
-      image: imageFor('accessories/76 - Acrylic Name Plate', cardImages.businessCards),
+      title: 'Acrylic Nameplate',
+      subtitle: 'Professional acrylic nameplate.',
+      image: firstImageInFolder('accessories/Acrylic Name Plate', cardImages.accessories),
+      price: 'PHP 120',
+    },
+    {
+      title: 'Acrylic Keychain',
+      subtitle: 'Acrylic keychain accessory.',
+      image: firstImageInFolder('accessories/Acrylic Keychain', cardImages.accessories),
+      price: 'PHP 80',
     },
     {
       title: 'Lanyard',
-      subtitle: 'Custom lanyard for ID cards and badges.',
-      image: imageFor('accessories/77 - Lanyard', cardImages.businessCards),
+      subtitle: 'Custom lanyard for badges.',
+      image: firstImageInFolder('accessories/Lanyard', cardImages.accessories),
+      price: 'PHP 80',
     },
     {
       title: 'Leather Mouse Pad',
       subtitle: 'Premium leather mouse pad.',
-      image: imageFor('accessories/78 - Leather Mouse Pad', cardImages.businessCards),
+      image: firstImageInFolder('accessories/Leather Mouse Pad', cardImages.accessories),
+      price: 'PHP 180',
     },
     {
       title: 'Button Pins',
       subtitle: 'Custom button pins.',
-      image: imageFor('accessories/79 - Button Pins', cardImages.businessCards),
-    },
-    {
-      title: 'Card Holder',
-      subtitle: 'Convenient card holder.',
-      image: imageFor('accessories/80 - Card Holder', cardImages.businessCards),
-    },
-    {
-      title: 'Short Lanyard w/ Carabiner',
-      subtitle: 'Short lanyard with a carabiner clip.',
-      image: imageFor('accessories/81 - Short Lanyard w Carabiner', cardImages.businessCards),
-    },
-    {
-      title: 'Wooden Fan',
-      subtitle: 'Elegant wooden fan.',
-      image: imageFor('accessories/82 - Wooden Fan', cardImages.businessCards),
+      image: firstImageInFolder('accessories/Button Pins', cardImages.accessories),
+      price: 'PHP 20',
     },
   ],
-  cards: [
+  digital: [
     {
-      title: 'Paper Fans',
-      subtitle: 'Paper Fans with custom designs.',
-      image: imageFor('bundle/92 - Paper Fans', cardImages.businessCards),
-    },
-  ],
-  flyers: [
-    {
-      title: 'Bundle with Box and Ribbon',
-      subtitle: 'Custom Bundle with Box and Ribbon.',
-      image: imageFor('bundle/89 - Customized Envelope', cardImages.businessCards),
-    },
-  ],
-  banners: [
-    {
-      title: '50-sheet Notepad',
-      subtitle: 'Compact notepad for quick notes.',
-      image: imageFor('bundle/86 - 50-sheet Notepad', cardImages.businessCards),
+      title: 'Stickers',
+      subtitle: 'Custom stickers for labels, packaging, and promos.',
+      image: firstImageInFolder('digitalAndLargeFormat/Sticker', cardImages.businessCards),
+      price: 'PHP 5',
     },
     {
-      title: 'Roll-up Banner',
-      subtitle: 'Portable roll-up banner.',
-      image: imageFor('bundle/87 - Roll-up Banner', cardImages.businessCards),
+      title: 'Box',
+      subtitle: 'Custom printed boxes for packaging and gift items.',
+      image: firstImageInFolder('digitalAndLargeFormat/Box', cardImages.businessCards),
+      price: 'PHP 10',
     },
-  ],
-  sinta: [
+    {
+      title: 'Flyers',
+      subtitle: 'Promotional flyers with digital printing options.',
+      image: firstImageInFolder('digitalAndLargeFormat/Flyers', cardImages.businessCards),
+      price: 'PHP 15',
+    },
+    {
+      title: 'Envelope',
+      subtitle: 'Custom envelopes for special mailings and stationery.',
+      image: firstImageInFolder('digitalAndLargeFormat/Envelope', cardImages.businessCards),
+      price: 'PHP 30',
+    },
+    {
+      title: 'Tarpaulin',
+      subtitle: 'Outdoor tarpaulins for large format signage and events.',
+      image: firstImageInFolder('digitalAndLargeFormat/Tarpaulin', cardImages.businessCards),
+      price: 'PHP 30',
+    },
     {
       title: 'Sintra Board',
-      subtitle: 'Durable sintra board signage.',
-      image: imageFor('bundle/88 - Sintra Board', cardImages.businessCards),
+      subtitle: 'Rigid Sintra board printing for signboards and displays.',
+      image: firstImageInFolder('digitalAndLargeFormat/Sintra Board', cardImages.businessCards),
+      price: 'PHP 45',
     },
     {
-      title: 'Customized Envelope',
-      subtitle: 'Personalized envelopes.',
-      image: imageFor('bundle/90 - Bundle with Box and Ribbon', cardImages.businessCards),
-    },
-        {
-      title: 'Bundle Set',
-      subtitle: 'Custom Bundle Set for gift giving.',
-      image: imageFor('bundle/91 - Bundle Set', cardImages.businessCards),
-    },
-  ],
-  tarpaulin: [
-    {
-      title: 'A5 Notebooks (Ruled Pages)',
-      subtitle: 'Notebooks  for Writing.',
-      image: imageFor('bundle/83 - A5 Notebook (Ruled Pages)', cardImages.businessCards),
+      title: 'Folder',
+      subtitle: 'Presentation folders with full-color printing.',
+      image: firstImageInFolder('digitalAndLargeFormat/Folder', cardImages.businessCards),
+      price: 'PHP 100',
     },
     {
-      title: 'A5 Flyers',
-      subtitle: 'Custom flyers for promotion.',
-      image: imageFor('bundle/84 - A5 Flyers', cardImages.businessCards),
+      title: 'Roll Up Banner',
+      subtitle: 'Retractable roll-up banners for events and promotions.',
+      image: firstImageInFolder('digitalAndLargeFormat/Roll Up Banner', cardImages.businessCards),
+      price: 'PHP 120',
+    },
+    {
+      title: 'Notebook',
+      subtitle: 'Branded notebooks with custom covers.',
+      image: firstImageInFolder('digitalAndLargeFormat/Notebook', cardImages.businessCards),
+      price: 'PHP 150',
+    },
+    {
+      title: 'Notepads',
+      subtitle: 'Compact notepads for office use and giveaways.',
+      image: firstImageInFolder('digitalAndLargeFormat/Notepads', cardImages.businessCards),
+      price: 'PHP 150',
+    },
+    {
+      title: 'Paper Fans',
+      subtitle: 'Printed paper fans for events and outdoor promos.',
+      image: firstImageInFolder('digitalAndLargeFormat/Paper Fans', cardImages.businessCards),
+      price: 'PHP 150',
+    },
+    {
+      title: 'Brochure',
+      subtitle: 'Marketing brochures with full-color printing.',
+      image: firstImageInFolder('digitalAndLargeFormat/Brochure', cardImages.businessCards),
+      price: 'PHP 250',
     },
     {
       title: 'Business Cards',
-      subtitle: 'Custom business cards for various uses.',
-      image: imageFor('bundle/85 - Business Cards', cardImages.businessCards),
+      subtitle: 'Professional business cards for branding.',
+      image: firstImageInFolder('digitalAndLargeFormat/Business Cards', cardImages.businessCards),
+      price: 'PHP 600',
+    },
+  ],
+  setsAndBundles: [
+    {
+      title: 'Bundle 1',
+      subtitle: 'Planner, 650ml tumbler, 350ml egg mug, and sprayer bottle.',
+      image: firstImageInFolder('bundle/Bundle 1', cardImages.businessCards),
+      price: 'PHP 1,300',
+    },
+    {
+      title: 'Bundle 2',
+      subtitle: '650ml tumbler and 350ml mug.',
+      image: firstImageInFolder('bundle/Bundle 2', cardImages.businessCards),
+      price: 'PHP 920',
+    },
+    {
+      title: 'Bundle 3',
+      subtitle: '500ml tumbler, 350ml egg mug, sprayer bottle, spoon, and fork.',
+      image: firstImageInFolder('bundle/Bundle 3', cardImages.businessCards),
+      price: 'PHP 1,250',
+    },
+    {
+      title: 'Bundle 4',
+      subtitle: 'Mug and box with logo.',
+      image: firstImageInFolder('bundle/Bundle 4', cardImages.businessCards),
+      price: 'PHP 470',
+    },
+    {
+      title: 'Bundle 5',
+      subtitle: 'Notebook, mug, and ballpen.',
+      image: firstImageInFolder('bundle/Bundle 5', cardImages.businessCards),
+      price: 'PHP 760',
+    },
+    {
+      title: 'Bundle 6',
+      subtitle: 'Planner, ballpen, and tumbler.',
+      image: firstImageInFolder('bundle/Bundle 6', cardImages.businessCards),
+      price: 'PHP 860',
+    },
+    {
+      title: 'Bundle 7',
+      subtitle: 'Egg mug, sprayer bottle, and customized box.',
+      image: firstImageInFolder('bundle/Bundle 7', cardImages.businessCards),
+      price: 'PHP 5',
+    },
+    {
+      title: 'Bundle 8',
+      subtitle: 'Planner, 650ml tumbler, bamboo mug, sprayer bottle, and box w/ logo.',
+      image: firstImageInFolder('bundle/Bundle 8', cardImages.businessCards),
+      price: 'PHP 680',
+    },
+    {
+      title: 'Bundle 9',
+      subtitle: 'Open-dated journal, bag tag, mousepad, egg mug, 800ml tumbler, foldable umbrella, sprayer bottle, bucket hat, ballpen, and tote bag.',
+      image: firstImageInFolder('bundle/Bundle 9', cardImages.businessCards),
+      price: 'PHP 2,500',
+    },
+    {
+      title: 'Bundle 10',
+      subtitle: '650ml tumbler, egg mug, sprayer bottle, and customized box.',
+      image: firstImageInFolder('bundle/Bundle 10', cardImages.businessCards),
+      price: 'PHP 1,150',
+    },
+    {
+      title: 'Bundle 11',
+      subtitle: '650ml tumbler and customized box.',
+      image: firstImageInFolder('bundle/Bundle 11', cardImages.businessCards),
+      price: 'PHP 600',
+    },
+    {
+      title: 'Bundle 12',
+      subtitle: '350ml coffee mug and customized box.',
+      image: firstImageInFolder('bundle/Bundle 12', cardImages.businessCards),
+      price: 'PHP 500',
+    },
+    {
+      title: 'Bundle 13',
+      subtitle: '1100ml tumbler, tote bag, and customized box.',
+      image: firstImageInFolder('bundle/Bundle 13', cardImages.businessCards),
+      price: 'PHP 910',
+    },
+    {
+      title: 'Bundle 14',
+      subtitle: '600ml tumbler and customized box.',
+      image: firstImageInFolder('bundle/Bundle 14', cardImages.businessCards),
+      price: 'PHP 600',
+    },
+    {
+      title: 'Bundle 15',
+      subtitle: '350ml coffee mug, ballpen, and customized bag.',
+      image: firstImageInFolder('bundle/Bundle 15', cardImages.businessCards),
+      price: 'PHP 560',
+    },
+    {
+      title: 'Bundle Set',
+      subtitle: 'Bundle set with curated items.',
+      image: firstImageInFolder('bundle/Bundle Set', cardImages.businessCards),
+      price: 'PHP 1,175',
+    },
+    {
+      title: 'Bundle w/ Ribbon',
+      subtitle: 'Bundle packaged with ribbon.',
+      image: firstImageInFolder('bundle/Bundle w Ribbon', cardImages.businessCards),
+      price: 'PHP 1,500',
     },
   ],
 };
@@ -699,14 +1024,33 @@ const categories = {
 
 
 
+const categoriesWithGallery = Object.fromEntries(
+  Object.entries(categories).map(([categoryKey, items]) => [
+    categoryKey,
+    items.map((item) => ({
+      ...item,
+      galleryImages: getGalleryImagesFromImageUrl(item.image),
+    })),
+  ]),
+) as Record<string, Array<{
+  title: string;
+  subtitle: string;
+  image: string;
+  price: string;
+  colors?: string[];
+  colorOptions?: { name: string; hex: string; image: string }[];
+  galleryImages?: string[];
+}>>;
+
 // Merged category items
-const drinkwareItems = categories.drinkware;
-const kitchenwareAllItems = categories.kitchenware;
-const umbrellasAndBagsItems = [...categories.umbrellas, ...categories.toteBags];
-const capsAndApparelItems = [...categories.caps, ...categories.shirts, ...categories.aprons, ...categories.hoodies, ...categories.jackets];
-const notebooksAndPensItems = [...categories.notebooks, ...categories.pens, ...categories.planners];
-const accessoriesAllItems = categories.accessories;
-const bundleItems = [...categories.cards, ...categories.flyers, ...categories.banners, ...categories.sinta, ...categories.tarpaulin];
+const drinkwareItems = categoriesWithGallery.drinkware;
+const kitchenwareAllItems = categoriesWithGallery.kitchenware;
+const umbrellasAndBagsItems = [...categoriesWithGallery.umbrellas, ...categoriesWithGallery.toteBags];
+const capsAndApparelItems = [...categoriesWithGallery.caps, ...categoriesWithGallery.shirts, ...categoriesWithGallery.aprons, ...categoriesWithGallery.hoodies, ...categoriesWithGallery.jackets];
+const notebooksAndPensItems = [...categoriesWithGallery.notebooks, ...categoriesWithGallery.pens, ...categoriesWithGallery.planners];
+const accessoriesAllItems = categoriesWithGallery.accessories;
+const digitalItems = categoriesWithGallery.digital;
+const setsAndBundlesItems = categoriesWithGallery.setsAndBundles;
 
 const allSearchItems: SearchEntry[] = [
   ...drinkwareItems.map((item) => ({ title: item.title, page: 'drinkware', pageLabel: 'Drinkware', item })),
@@ -715,7 +1059,8 @@ const allSearchItems: SearchEntry[] = [
   ...capsAndApparelItems.map((item) => ({ title: item.title, page: 'capsAndApparel', pageLabel: 'Caps & Apparel', item })),
   ...notebooksAndPensItems.map((item) => ({ title: item.title, page: 'notebooksAndPens', pageLabel: 'Notebooks & Pens', item })),
   ...accessoriesAllItems.map((item) => ({ title: item.title, page: 'accessories', pageLabel: 'Accessories', item })),
-  ...bundleItems.map((item) => ({ title: item.title, page: 'bundle', pageLabel: 'Bundle', item })),
+  ...digitalItems.map((item) => ({ title: item.title, page: 'digital', pageLabel: 'Digital & Large Format', item })),
+  ...setsAndBundlesItems.map((item) => ({ title: item.title, page: 'setsAndBundles', pageLabel: 'Sets & Bundles', item })),
 ];
 
 export default function App() {
@@ -740,13 +1085,18 @@ export default function App() {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [page]);
 
+  const navigateToHash = (hash: string) => {
+    window.location.hash = hash;
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  };
+
   const openSearch = () => {
     setSearchOpen(true);
     setSearchTerm('');
   };
 
   const openInfoPage = () => {
-    window.location.hash = '#info';
+    navigateToHash('#info');
   };
 
   const closeSearch = () => {
@@ -757,7 +1107,7 @@ export default function App() {
     setSearchOpen(false);
     setSearchTerm('');
     setSearchSelectedItemTitle(selected.title);
-    window.location.hash = `#${selected.page}`;
+    navigateToHash(`#${selected.page}`);
   };
 
   const filteredSearchItems = searchTerm.trim()
@@ -824,19 +1174,23 @@ export default function App() {
   let pageContent = <HomePage cardImages={cardImages} />;
 
   if (page === 'drinkware') {
-    pageContent = <DrinkwarePage items={drinkwareItems} onBack={() => (window.location.hash = '#home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+    pageContent = <DrinkwarePage items={drinkwareItems} onBack={() => navigateToHash('#home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
   } else if (page === 'kitchenware') {
-    pageContent = <KitchenwarePage items={kitchenwareAllItems} onBack={() => (window.location.hash = '#home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+    pageContent = <KitchenwarePage items={kitchenwareAllItems} onBack={() => navigateToHash('#home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
   } else if (page === 'umbrellasAndBags') {
-    pageContent = <UmbrellasAndBagsPage items={umbrellasAndBagsItems} onBack={() => (window.location.hash = '#home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+    pageContent = <UmbrellasAndBagsPage items={umbrellasAndBagsItems} onBack={() => navigateToHash('#home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
   } else if (page === 'capsAndApparel') {
-    pageContent = <CapsAndApparelPage items={capsAndApparelItems} onBack={() => (window.location.hash = '#home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+    pageContent = <CapsAndApparelPage items={capsAndApparelItems} onBack={() => navigateToHash('#home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
   } else if (page === 'notebooksAndPens') {
-    pageContent = <NotebooksAndPensPage items={notebooksAndPensItems} onBack={() => (window.location.hash = '#home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+    pageContent = <NotebooksAndPensPage items={notebooksAndPensItems} onBack={() => navigateToHash('#home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
   } else if (page === 'accessories') {
-    pageContent = <AccessoriesPage items={accessoriesAllItems} onBack={() => (window.location.hash = '#home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
-  } else if (page === 'bundle') {
-    pageContent = <BundlePage items={bundleItems} onBack={() => (window.location.hash = '#home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+    pageContent = <AccessoriesPage items={accessoriesAllItems} onBack={() => navigateToHash('#home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+  } else if (page === 'digital') {
+    pageContent = <DigitalAndLargeFormatPage items={digitalItems} onBack={() => navigateToHash('#home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+  } else if (page === 'setsAndBundles') {
+    pageContent = <SetsAndBundlesPage items={setsAndBundlesItems} onBack={() => navigateToHash('#home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+  } else if (page === 'about') {
+    pageContent = <AboutUsPage />;
   } else if (page === 'info') {
     pageContent = <InfoPage image={localImages['info eis'] ?? cardImages.eisBanner} />;
   }

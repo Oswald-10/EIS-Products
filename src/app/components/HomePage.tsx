@@ -18,6 +18,11 @@ interface HomePageProps {
 }
 
 export function HomePage({ cardImages }: HomePageProps) {
+  const navigateToHash = (hash: string) => {
+    window.location.hash = hash;
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  };
+
   return (
     <main className="hero-section flex-grow-1">
       <div className="w-100 px-3 py-3">
@@ -25,27 +30,30 @@ export function HomePage({ cardImages }: HomePageProps) {
       </div>
 
       <div className="w-100 px-3 py-3">
-        <HeroCard
-          title="Custom Caps"
-          subtitle="Headwear that stands out."
-          image={cardImages.caps}
-          bgColor="bg-white"
-          imageSize="large"
-          showActions={false}
-          onClick={() => (window.location.hash = '#capsAndApparel')}
-        />
-      </div>
-
-      <div className="w-100 px-3 py-3">
-        <HeroCard
-          title="Custom Tote Bags"
-          subtitle="Eco-friendly. Customizable."
-          image={cardImages.toteBags}
-          bgColor="bg-white"
-          imageSize="small"
-          showActions={false}
-          onClick={() => (window.location.hash = '#umbrellasAndBags')}
-        />
+        <div className="row g-3">
+          <div className="col-12 col-lg-6">
+            <HeroCard
+              title="Custom Caps"
+              subtitle="Headwear that stands out."
+              image={cardImages.caps}
+              bgColor="bg-white"
+              imageSize="large"
+              showActions={false}
+              onClick={() => navigateToHash('#capsAndApparel')}
+            />
+          </div>
+          <div className="col-12 col-lg-6">
+            <HeroCard
+              title="Custom Tote Bags"
+              subtitle="Eco-friendly. Customizable."
+              image={cardImages.toteBags}
+              bgColor="bg-white"
+              imageSize="small"
+              showActions={false}
+              onClick={() => navigateToHash('#umbrellasAndBags')}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="w-100 px-3 py-3">
@@ -61,7 +69,7 @@ export function HomePage({ cardImages }: HomePageProps) {
               primaryActionHref="#"
               secondaryActionHref="#"
               showActions={false}
-              onClick={() => (window.location.hash = '#bundle')}
+              onClick={() => navigateToHash('#digital')}
             />
           </div>
         </div>
@@ -79,7 +87,7 @@ export function HomePage({ cardImages }: HomePageProps) {
               primaryActionHref="#"
               secondaryActionHref="#"
               showActions={false}
-              onClick={() => (window.location.hash = '#notebooksAndPens')}
+              onClick={() => navigateToHash('#notebooksAndPens')}
             />
           </div>
           <div className="col-12 col-lg-6">
@@ -92,7 +100,7 @@ export function HomePage({ cardImages }: HomePageProps) {
               primaryActionHref="#"
               secondaryActionHref="#"
               showActions={false}
-              onClick={() => (window.location.hash = '#capsAndApparel')}
+              onClick={() => navigateToHash('#capsAndApparel')}
             />
           </div>
         </div>
@@ -110,7 +118,7 @@ export function HomePage({ cardImages }: HomePageProps) {
               primaryActionHref="#"
               secondaryActionHref="#"
               showActions={false}
-              onClick={() => (window.location.hash = '#capsAndApparel')}
+              onClick={() => navigateToHash('#capsAndApparel')}
             />
           </div>
           <div className="col-12 col-lg-6">
@@ -123,7 +131,7 @@ export function HomePage({ cardImages }: HomePageProps) {
               primaryActionHref="#"
               secondaryActionHref="#"
               showActions={false}
-              onClick={() => (window.location.hash = '#capsAndApparel')}
+              onClick={() => navigateToHash('#capsAndApparel')}
             />
           </div>
         </div>
@@ -141,7 +149,7 @@ export function HomePage({ cardImages }: HomePageProps) {
               primaryActionHref="#"
               secondaryActionHref="#"
               showActions={false}
-              onClick={() => (window.location.hash = '#drinkware')}
+              onClick={() => navigateToHash('#drinkware')}
             />
           </div>
           <div className="col-12 col-lg-6">
@@ -154,7 +162,7 @@ export function HomePage({ cardImages }: HomePageProps) {
               primaryActionHref="#"
               secondaryActionHref="#"
               showActions={false}
-              onClick={() => (window.location.hash = '#notebooksAndPens')}
+              onClick={() => navigateToHash('#notebooksAndPens')}
             />
           </div>
         </div>

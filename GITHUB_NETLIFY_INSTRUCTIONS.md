@@ -107,3 +107,70 @@ git push origin your-branch-name
 - Keep item titles clean and consistent.
 - Use `src/assets/images/<category>/sample/` for slideshow or gallery assets.
 - If images do not appear, confirm the path with `imageFor()` and ensure the file name matches exactly.
+
+---
+
+## 8. Recent Modifications and Instructions
+
+### Adding Prices to All Items
+All product items now include a `price` field. To add or update prices:
+
+1. Open `src/app/App.tsx`.
+2. Find the item in the `categories` object.
+3. Add or update the `price` property:
+
+```ts
+{
+  title: 'Product Name',
+  subtitle: 'Description',
+  image: imageFor('category/image', cardImages.category),
+  price: '$XX.XX',
+}
+```
+
+**Note:** Prices are displayed on product cards and in modals. Ensure all items have prices for consistency.
+
+### Mobile Responsiveness Improvements
+- **Navigation:** On mobile devices, the search and phone buttons are now inside the collapsible menu.
+- **Prices:** Price text uses smaller font sizes on mobile (`fs-6` on cards, `fs-5` in modals).
+- **Modal:** Reduced padding and minimum height on mobile for better fit.
+
+### About Us Page
+A new About Us page has been added with placeholders for content.
+
+#### To Add/Update About Us Content:
+1. Open `src/app/components/AboutUsPage.tsx`.
+2. Replace placeholder text in square brackets `[]` with actual content.
+3. Update contact information, company story, team details, etc.
+
+#### Navigation:
+- The About Us page is accessible via the "About Us" link in the main navigation.
+- URL: `#about`
+
+#### Files Modified for About Us:
+- `src/app/components/AboutUsPage.tsx` (new file)
+- `src/app/App.tsx` (added import and routing)
+- `src/app/components/Navigation.tsx` (added menu link)
+
+### Modal Responsiveness
+The product preview modal has been optimized for mobile:
+- Reduced overlay padding from 2rem to 1rem on screens < 768px
+- Decreased modal body padding
+- Lowered image card minimum height from 520px to 300px on mobile
+- Adjusted controls padding
+
+### CSS Changes
+Responsive styles added to `src/styles/bootstrap-custom.css`:
+- Media queries for mobile-specific padding and sizing
+- Font size adjustments for prices
+
+---
+
+## 9. Deployment Checklist
+Before deploying, ensure:
+- [ ] All items have prices
+- [ ] Navigation works on mobile
+- [ ] Modal displays properly on small screens
+- [ ] About Us page content is updated (remove placeholders)
+- [ ] Images load correctly
+- [ ] No console errors in browser
