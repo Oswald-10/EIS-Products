@@ -72,13 +72,15 @@ const getColorOptionsFromFolder = (folderPath: string) => {
     .map((key) => {
       const fileName = key.slice(folderPath.length + 1);
       const rawName = fileName.replace(/\.(png|jpe?g|webp)$/i, '').replace(/_/g, ' ');
-      const displayName = rawName
+      // Normalize names like 'gcap navy blue' -> 'navy blue'
+      const cleaned = rawName.replace(/^gcap[\s-_]?/i, '').trim();
+      const displayName = cleaned
         .split(/\s+/)
         .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
         .join(' ');
       return {
         name: displayName,
-        hex: colorFromFilename(rawName),
+        hex: colorFromFilename(cleaned),
         image: localImages[key],
       };
     });
