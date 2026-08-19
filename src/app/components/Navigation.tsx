@@ -3,17 +3,29 @@ import 'bootstrap-icons/font/bootstrap-icons.css';
 import eisLogo from '../../assets/images/EIS_LOGO.png';
 import { HEADER_NAVIGATION } from '../../lib/cms';
 
+interface NavCategory { id: string; name: string; slug: string; is_active?: boolean; display_order?: number }
+
 interface NavigationProps {
   onSearchOpen: () => void;
   onPhoneClick: () => void;
+  categories?: NavCategory[]; // optional dynamic categories from App
 }
 
-export function Navigation({ onSearchOpen, onPhoneClick }: NavigationProps) {
+export function Navigation({ onSearchOpen, onPhoneClick, categories }: NavigationProps) {
   const [navOpen, setNavOpen] = useState(false);
   const toggleNav = () => setNavOpen((current) => !current);
   const closeNav = () => setNavOpen(false);
 
-  const navItems = HEADER_NAVIGATION;
+  // Always include Home as the first static link and About as the last static link.
+  // Insert dynamic categories from the middle. If no dynamic categories are provided, fall back to HEADER_NAVIGATION.
+  const staticStart = [{ name: 'Home', slug: 'home' }];
+  const staticEnd = [{ name: 'About Us', slug: 'about' }];
+
+  const middle = (categories && categories.length > 0)
+    ? [...categories].filter(c => c.is_active !== false).sort((a,b) => (a.display_order ?? 0) - (b.display_order ?? 0)).map(c => ({ name: c.name, slug: c.slug }))
+    : HEADER_NAVIGATION.filter(item => item.slug !== 'home' && item.slug !== 'about').map(item => ({ name: item.name, slug: item.slug }));
+
+  const navItems = [...staticStart, ...middle, ...staticEnd];
 
   return (
     <nav className="navbar navbar-dark navbar-expand-md fixed-top">

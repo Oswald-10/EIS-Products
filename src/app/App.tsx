@@ -15,7 +15,8 @@ import { InfoPage } from './components/InfoPage';
 import { AboutUsPage } from './components/AboutUsPage';
 import { CategoryPage } from './components/CategoryPage';
 import { AdminPanel } from '../components/AdminPanel';
-import { buildPublicCategoryList, readCatalogData, type CatalogData } from '../lib/cms';
+import { buildPublicCategoryList, readCatalogData, writeCatalogData, ensureCanonicalCategories, getProductsForCategory, getCategoryBySlug, type CatalogData } from '../lib/cms';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const imageModules = import.meta.glob('/src/assets/images/**/*.{png,jpg,jpeg,webp}', { eager: true }) as Record<string, { default: string }>;
 const localImages = Object.fromEntries(
@@ -1122,6 +1123,72 @@ export default function App() {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [page]);
 
+  // Fetch live catalog from Supabase when configured and merge into catalogData.
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+    let mounted = true;
+
+    (async () => {
+      try {
+        const { data: categories, error: catErr } = await supabase
+          .from('categories')
+          .select('*')
+          .order('display_order', { ascending: true });
+
+        const { data: products, error: prodErr } = await supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: true });
+
+        if (catErr) throw catErr;
+        if (prodErr) throw prodErr;
+
+        const mappedCategories = (categories ?? []).map((c: any) => ({
+          id: String(c.id),
+          name: c.name,
+          slug: c.slug,
+          display_order: c.display_order ?? 1,
+          is_active: Boolean(c.is_active),
+          created_at: c.created_at,
+          updated_at: c.updated_at,
+        }));
+
+        const mappedProducts = (products ?? []).map((p: any) => ({
+          id: String(p.id),
+          category_id: String(p.category_id),
+          name: p.name,
+          slug: p.slug,
+          description: p.description ?? '',
+          price: Number(p.price ?? 0),
+          image_url: p.image_url ?? '',
+          variants: p.variants ?? [],
+          is_active: Boolean(p.is_active),
+          created_at: p.created_at,
+          updated_at: p.updated_at,
+        }));
+
+        const newCatalog = ensureCanonicalCategories({
+          categories: mappedCategories,
+          products: mappedProducts,
+          homepageImages: catalogData.homepageImages ?? [],
+          categorySampleImages: catalogData.categorySampleImages ?? [],
+          updated_at: new Date().toISOString(),
+        });
+
+        if (mounted) {
+          setCatalogData(newCatalog);
+          try { writeCatalogData(newCatalog); } catch { /* ignore */ }
+        }
+      } catch (err) {
+        // keep using legacy/local catalog if Supabase fetch fails
+        // eslint-disable-next-line no-console
+        console.error('Failed to load Supabase catalog', err);
+      }
+    })();
+
+    return () => { mounted = false; };
+  }, []);
+
   const navigateToHash = (hash: string) => {
     const normalized = hash.startsWith('#') ? hash : `#${hash}`;
     window.location.hash = normalized;
@@ -1236,29 +1303,48 @@ export default function App() {
         cardImages={cardImages}
       />
     );
-  } else if (page === 'drinkware') {
-    pageContent = <DrinkwarePage items={drinkwareItems} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
-  } else if (page === 'kitchenware') {
-    pageContent = <KitchenwarePage items={kitchenwareAllItems} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
-  } else if (page === 'umbrellasAndBags') {
-    pageContent = <UmbrellasAndBagsPage items={umbrellasAndBagsItems} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
-  } else if (page === 'capsAndApparel') {
-    pageContent = <CapsAndApparelPage items={capsAndApparelItems} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
-  } else if (page === 'notebooksAndPens') {
-    pageContent = <NotebooksAndPensPage items={notebooksAndPensItems} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
-  } else if (page === 'accessories') {
-    pageContent = <AccessoriesPage items={accessoriesAllItems} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
-  } else if (page === 'digital') {
-    pageContent = <DigitalAndLargeFormatPage items={digitalItems} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
-  } else if (page === 'setsAndBundles') {
-    pageContent = <SetsAndBundlesPage items={setsAndBundlesItems} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+  } else if (['drinkware','kitchenware','umbrellasAndBags','capsAndApparel','notebooksAndPens','accessories','digital','setsAndBundles'].includes(page)) {
+    const cat = getCategoryBySlug(catalogData, page);
+    if (cat) {
+      const products = getProductsForCategory(catalogData, cat.id);
+      const items = products.map((product) => {
+        const variants = product.variants ?? [];
+        const colorOptions = variants.length > 0
+          ? variants
+              .slice()
+              .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
+              .map((v) => ({ name: v.name, hex: colorFromFilename(v.name), image: v.image_url }))
+          : undefined;
+
+        const galleryImages = variants.length > 0 ? variants.map((v) => v.image_url) : [product.image_url || cardImages.eisBanner];
+
+        return {
+          title: product.name,
+          subtitle: product.description,
+          image: product.image_url || (variants[0] && variants[0].image_url) || cardImages.eisBanner,
+          price: `PHP ${Number(product.price).toLocaleString('en-US')}`,
+          galleryImages,
+          colorOptions,
+        };
+      });
+
+      if (page === 'drinkware') pageContent = <DrinkwarePage items={items} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+      else if (page === 'kitchenware') pageContent = <KitchenwarePage items={items} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+      else if (page === 'umbrellasAndBags') pageContent = <UmbrellasAndBagsPage items={items} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+      else if (page === 'capsAndApparel') pageContent = <CapsAndApparelPage items={items} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+      else if (page === 'notebooksAndPens') pageContent = <NotebooksAndPensPage items={items} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+      else if (page === 'accessories') pageContent = <AccessoriesPage items={items} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+      else if (page === 'digital') pageContent = <DigitalAndLargeFormatPage items={items} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+      else if (page === 'setsAndBundles') pageContent = <SetsAndBundlesPage items={items} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+    }
   } else if (page === 'about') {
     pageContent = <AboutUsPage />;
   } else if (page === 'info') {
     pageContent = <InfoPage image={localImages['info eis'] ?? cardImages.eisBanner} />;
   } else {
     const dynamicCategory = publicCategories.find((category) => category.slug === page);
-    if (dynamicCategory && catalogData.products.length > 0) {
+    // Guard: never override the explicit 'home' (or 'about'/'admin') route with a dynamic category
+    if (page !== 'home' && page !== 'about' && page !== 'admin' && dynamicCategory && catalogData.products.length > 0) {
       const itemsForCategory = catalogData.products
         .filter((product) => product.category_id === dynamicCategory.id && product.is_active)
         .map((product) => {
@@ -1299,7 +1385,7 @@ export default function App() {
 
   return (
     <div className="d-flex flex-column min-vh-100">
-      <Navigation onSearchOpen={openSearch} onPhoneClick={openInfoPage} />
+      <Navigation categories={publicCategories} onSearchOpen={openSearch} onPhoneClick={openInfoPage} />
       {searchOverlay}
       {pageContent}
     </div>
