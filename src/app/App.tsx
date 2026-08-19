@@ -1175,9 +1175,17 @@ export default function App() {
           updated_at: new Date().toISOString(),
         });
 
-        if (mounted) {
+        // Only override the local/legacy catalog if Supabase returned any categories or products.
+        // This prevents an empty DB (or missing tables) from wiping the in-repo static catalog.
+        const hasDbData = (Array.isArray(mappedCategories) && mappedCategories.length > 0) || (Array.isArray(mappedProducts) && mappedProducts.length > 0);
+
+        if (mounted && hasDbData) {
           setCatalogData(newCatalog);
           try { writeCatalogData(newCatalog); } catch { /* ignore */ }
+        } else {
+          // Keep existing catalogData (legacy static data) so the site remains functional when DB is empty.
+          // eslint-disable-next-line no-console
+          console.info('Supabase returned no categories/products; preserving local static catalog.');
         }
       } catch (err) {
         // keep using legacy/local catalog if Supabase fetch fails
