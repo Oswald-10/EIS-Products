@@ -190,6 +190,105 @@ export const createBlankCatalog = () => ({
   updated_at: nowIso(),
 } satisfies CatalogData);
 
+// Header nav (source of truth). Keep full nav and a canonical list of product categories (exclude Home/About from product category list)
+export const HEADER_NAVIGATION = [
+  { name: 'Home', slug: 'home' },
+  { name: 'Drinkwares', slug: 'drinkware' },
+  { name: 'Kitchenwares', slug: 'kitchenware' },
+  { name: 'Umbrellas & Bags', slug: 'umbrellasAndBags' },
+  { name: 'Caps & Apparel', slug: 'capsAndApparel' },
+  { name: 'Notebooks & Pens', slug: 'notebooksAndPens' },
+  { name: 'Accessories', slug: 'accessories' },
+  { name: 'Digital & Large Format', slug: 'digital' },
+  { name: 'Sets & Bundles', slug: 'setsAndBundles' },
+  { name: 'About Us', slug: 'about' },
+];
+
+export const CANONICAL_CATEGORIES = HEADER_NAVIGATION.filter((c) => c.slug !== 'home' && c.slug !== 'about').map((c, i) => ({
+  id: `canonical-${c.slug}`,
+  name: c.name,
+  slug: c.slug,
+  display_order: i + 2, // keep Home as 1, About as last
+  is_active: true,
+} as CatalogCategory));
+
+// Ensure catalog contains canonical categories and migrate products/categorySampleImages from legacy categories into canonical ones when possible.
+export const ensureCanonicalCategories = (catalog: CatalogData): CatalogData => {
+  const next = { ...catalog } as CatalogData;
+  next.categories = [...(next.categories || [])];
+
+  // Ensure canonical categories exist in catalog.categories
+  for (const canonical of CANONICAL_CATEGORIES) {
+    const existing = next.categories.find((c) => c.slug === canonical.slug);
+    if (existing) {
+      existing.name = canonical.name;
+      existing.display_order = canonical.display_order;
+      existing.is_active = true;
+    } else {
+      next.categories.push({
+        id: canonical.id,
+        name: canonical.name,
+        slug: canonical.slug,
+        display_order: canonical.display_order,
+        is_active: true,
+        created_at: nowIso(),
+        updated_at: nowIso(),
+      });
+    }
+  }
+
+  // Build a map from legacy category id -> legacy category record
+  const legacyById = new Map<string, CatalogCategory>();
+  for (const c of next.categories) legacyById.set(c.id, c);
+
+  // Map legacy category to best canonical id using token intersection
+  const canonicalList = next.categories.filter((c) => CANONICAL_CATEGORIES.some((cc) => cc.slug === c.slug));
+  const canonicalBySlug = new Map(canonicalList.map((c) => [c.slug, c]));
+
+  const tokenize = (s: string) => (s || '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').split(/\s+/).filter(Boolean);
+
+  const findBestCanonicalFor = (legacy: CatalogCategory) => {
+    const legacyText = `${legacy.name} ${legacy.slug}`.toLowerCase();
+    const legacyTokens = tokenize(legacyText);
+    let best: { canonical?: CatalogCategory; score: number } = { score: 0 };
+    for (const cand of canonicalList) {
+      const candTokens = tokenize(`${cand.name} ${cand.slug}`);
+      const score = candTokens.reduce((acc, t) => acc + (legacyTokens.includes(t) ? 1 : 0), 0);
+      if (score > best.score) best = { canonical: cand, score };
+    }
+    return best.canonical;
+  };
+
+  // Reassign products whose category is non-canonical to canonical if a match exists
+  next.products = (next.products || []).map((p) => {
+    const cat = next.categories.find((c) => c.id === p.category_id);
+    if (!cat) return p;
+    // if cat is canonical already, keep
+    if (canonicalList.some((cc) => cc.id === cat.id || cc.slug === cat.slug)) return p;
+
+    const mapped = findBestCanonicalFor(cat);
+    if (mapped) {
+      return { ...p, category_id: mapped.id };
+    }
+    return p;
+  });
+
+  // Reassign categorySampleImages category_id similarly
+  if (Array.isArray(next.categorySampleImages)) {
+    next.categorySampleImages = next.categorySampleImages.map((ci) => {
+      const cat = next.categories.find((c) => c.id === ci.category_id);
+      if (!cat) return ci;
+      if (canonicalList.some((cc) => cc.id === cat.id || cc.slug === cat.slug)) return ci;
+      const mapped = findBestCanonicalFor(cat);
+      if (mapped) return { ...ci, category_id: mapped.id };
+      return ci;
+    });
+  }
+
+  next.updated_at = nowIso();
+  return next;
+};
+
 export const buildPublicCategoryList = (catalog: CatalogData) =>
   [...catalog.categories]
     .filter((category) => category.is_active)

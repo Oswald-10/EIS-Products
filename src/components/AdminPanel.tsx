@@ -10,6 +10,8 @@ import {
   readCatalogData,
   slugify,
   writeCatalogData,
+  ensureCanonicalCategories,
+  CANONICAL_CATEGORIES,
   type CatalogCategory,
   type CatalogData,
   type CatalogProduct,
@@ -32,16 +34,113 @@ const fileToDataUrl = (file: File) =>
   });
 
 const uploadFileToStorage = async (file: File, destPath: string) => {
-  if (isSupabaseConfigured && supabase) {
-    const bucketName = 'product-images';
-    const { error } = await supabase.storage.from(bucketName).upload(destPath, file, { cacheControl: '3600', upsert: false });
-    if (error) throw new Error(error.message);
-    const { data } = supabase.storage.from(bucketName).getPublicUrl(destPath);
-    return data.publicUrl ?? '';
+  if (!isSupabaseConfigured || !supabase) {
+    // fallback: data URL
+    return await fileToDataUrl(file);
   }
 
-  // fallback: data URL
-  return await fileToDataUrl(file);
+  // allow overriding the primary bucket via env var (useful for Netlify config)
+  const primaryBucket = (import.meta.env.VITE_SUPABASE_IMAGE_BUCKET as string) || 'product-images';
+
+  const attemptUpload = async (bucketName: string) => {
+    const { error } = await supabase.storage.from(bucketName).upload(destPath, file, { cacheControl: '3600', upsert: false });
+    if (error) {
+      const msg = error.message ?? String(error);
+      const err: any = new Error(msg);
+      err.code = (error as any).status ?? null;
+      throw err;
+    }
+    const { data } = supabase.storage.from(bucketName).getPublicUrl(destPath);
+    return data.publicUrl ?? '';
+  };
+
+  // Try primary bucket first
+  try {
+    return await attemptUpload(primaryBucket);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    // If bucket not found, attempt to discover an existing bucket from current catalog image URLs or stored runtime override
+    if (message.toLowerCase().includes('bucket not found') || message.toLowerCase().includes('not found')) {
+      try {
+        // 1) Check runtime override persisted in localStorage
+        const runtimeOverride = typeof window !== 'undefined' ? window.localStorage.getItem('eis-supabase-image-bucket') : null;
+        if (runtimeOverride && runtimeOverride !== primaryBucket) {
+          try {
+            return await attemptUpload(runtimeOverride);
+          } catch (e) {
+            // continue to discovery
+          }
+        }
+
+        // 2) Try to infer bucket from existing product or variant image URLs in the current catalog
+        const findBucketFromUrl = (url: string | undefined) => {
+          if (!url) return null;
+          const m = url.match(/\/storage\/v1\/object\/public\/([^/]+)\//i);
+          if (m) return m[1];
+          return null;
+        };
+
+        let inferredBucket: string | null = null;
+        // look through products, variants, homepageImages, categorySampleImages if we have catalog access
+        try {
+          const raw = typeof window !== 'undefined' ? window.localStorage.getItem('eis-cms-catalog-v1') : null;
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            for (const p of parsed.products || []) {
+              inferredBucket = findBucketFromUrl(p.image_url) || inferredBucket;
+              if (p.variants) {
+                for (const v of p.variants) {
+                  inferredBucket = findBucketFromUrl(v.image_url) || inferredBucket;
+                  if (inferredBucket) break;
+                }
+              }
+              if (inferredBucket) break;
+            }
+            if (!inferredBucket && Array.isArray(parsed.homepageImages)) {
+              for (const h of parsed.homepageImages) {
+                inferredBucket = findBucketFromUrl(h.image_url) || inferredBucket;
+                if (inferredBucket) break;
+              }
+            }
+          }
+        } catch (inner) {
+          // ignore parsing errors
+        }
+
+        const triedBuckets: string[] = [];
+        if (inferredBucket) {
+          triedBuckets.push(inferredBucket);
+          try {
+            // store runtime override for future uploads
+            if (typeof window !== 'undefined') window.localStorage.setItem('eis-supabase-image-bucket', inferredBucket);
+            return await attemptUpload(inferredBucket);
+          } catch (e) {
+            // fall through to try other candidates
+          }
+        }
+
+        // try some common bucket names as last resort (do not delete existing buckets)
+        const candidates = [primaryBucket, 'product-images', 'images', 'website-images', 'public', 'public-images', 'eis-images'];
+        for (const candidate of candidates) {
+          if (triedBuckets.includes(candidate)) continue;
+          try {
+            const url = await attemptUpload(candidate);
+            // persist discovered bucket override for admin convenience
+            if (typeof window !== 'undefined') window.localStorage.setItem('eis-supabase-image-bucket', candidate);
+            return url;
+          } catch (e) {
+            // continue trying
+          }
+        }
+      } catch (inner) {
+        // ignore and fall through to error below
+      }
+    }
+
+    // if we reach here, all attempts failed — provide a helpful message
+    const hint = `Upload failed. ${message}. Ensure the Supabase project contains a storage bucket named '${primaryBucket}' (or set VITE_SUPABASE_IMAGE_BUCKET to the correct bucket name or configure via the Admin 'Detect storage bucket' button) and that the anon key has upload permissions.`;
+    throw new Error(hint);
+  }
 };
 
 const getInitialSession = () => {
@@ -112,7 +211,14 @@ export function AdminPanel({
   const [isSavingCategory, setIsSavingCategory] = useState(false);
 
   useEffect(() => {
-    setCurrentCatalog(catalogData);
+    // Ensure canonical categories exist and migrate legacy category assignments when admin opens the panel
+    const migrated = ensureCanonicalCategories(catalogData);
+    setCurrentCatalog(migrated);
+    // Persist migration if it changed anything
+    if (JSON.stringify(migrated) !== JSON.stringify(catalogData)) {
+      writeCatalogData(migrated);
+      onCatalogChange(migrated);
+    }
   }, [catalogData]);
 
   useEffect(() => {
@@ -893,6 +999,51 @@ export function AdminPanel({
                   <p className="text-muted">Manage homepage and category sample images. Changes persist to the local CMS (and to Supabase when configured).</p>
                   <hr />
                   <h5>Homepage Images</h5>
+                  <div className="mb-2 small text-muted">Current storage bucket: <strong>{(currentCatalog && currentCatalog['imageBucket']) || (typeof window !== 'undefined' && window.localStorage.getItem('eis-supabase-image-bucket')) || import.meta.env.VITE_SUPABASE_IMAGE_BUCKET || 'product-images'}</strong></div>
+                  <div className="mb-2">
+                    <button type="button" className="btn btn-sm btn-outline-secondary me-2" onClick={async () => {
+                      if (!isSupabaseConfigured || !supabase) {
+                        setAuthError('Supabase is not configured; cannot detect buckets.');
+                        return;
+                      }
+
+                      setIsUploadingImage(true);
+                      setAuthError('');
+                      const candidates = [import.meta.env.VITE_SUPABASE_IMAGE_BUCKET, 'product-images', 'images', 'website-images', 'public', 'public-images', 'eis-images'].filter(Boolean) as string[];
+                      let found: string | null = null;
+                      for (const candidate of candidates) {
+                        try {
+                          // try listing the root; if bucket doesn't exist this returns an error
+                          const { data, error } = await supabase.storage.from(candidate).list('', { limit: 1 });
+                          if (!error) { found = candidate; break; }
+                        } catch (e) {
+                          // continue
+                        }
+                      }
+
+                      if (found) {
+                        // persist runtime override and in catalog
+                        if (typeof window !== 'undefined') window.localStorage.setItem('eis-supabase-image-bucket', found);
+                        const next = { ...currentCatalog } as CatalogData;
+                        (next as any).imageBucket = found;
+                        persistCatalog(next);
+                        setAuthError(`Detected and set storage bucket to '${found}'. Please retry the upload.`);
+                      } else {
+                        setAuthError('Could not detect a usable bucket. Please confirm the Supabase project has a public storage bucket (e.g., product-images) and that environment variables are configured.');
+                      }
+
+                      setIsUploadingImage(false);
+                    }}>
+                      Detect storage bucket
+                    </button>
+                    <button type="button" className="btn btn-sm btn-outline-info" onClick={() => {
+                      // clear runtime override
+                      if (typeof window !== 'undefined') window.localStorage.removeItem('eis-supabase-image-bucket');
+                      const next = { ...currentCatalog } as CatalogData; (next as any).imageBucket = undefined; persistCatalog(next); setAuthError('Cleared runtime storage bucket override.');
+                    }}>
+                      Clear override
+                    </button>
+                  </div>
                   <div className="mb-3">
                     {['eisBanner','caps','toteBags','businessCards','plannersNotebooks','tShirts','jackets','aprons','tumblers','pens','kitchenware','accessories'].map((key) => {
                       const existing = (currentCatalog.homepageImages || []).find((h) => h.key === key);

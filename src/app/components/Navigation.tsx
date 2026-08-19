@@ -1,29 +1,19 @@
 import React, { useState } from 'react';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import eisLogo from '../../assets/images/EIS_LOGO.png';
+import { HEADER_NAVIGATION } from '../../lib/cms';
 
 interface NavigationProps {
   onSearchOpen: () => void;
   onPhoneClick: () => void;
 }
 
-const navItems = [
-  { name: 'Home', slug: 'home' },
-  { name: 'Drinkwares', slug: 'drinkware' },
-  { name: 'Kitchenwares', slug: 'kitchenware' },
-  { name: 'Umbrellas & Bags', slug: 'umbrellasAndBags' },
-  { name: 'Caps & Apparel', slug: 'capsAndApparel' },
-  { name: 'Notebooks & Pens', slug: 'notebooksAndPens' },
-  { name: 'Accessories', slug: 'accessories' },
-  { name: 'Digital & Large Format', slug: 'digital' },
-  { name: 'Sets & Bundles', slug: 'setsAndBundles' },
-  { name: 'About Us', slug: 'about' },
-];
-
 export function Navigation({ onSearchOpen, onPhoneClick }: NavigationProps) {
   const [navOpen, setNavOpen] = useState(false);
   const toggleNav = () => setNavOpen((current) => !current);
   const closeNav = () => setNavOpen(false);
+
+  const navItems = HEADER_NAVIGATION;
 
   return (
     <nav className="navbar navbar-dark navbar-expand-md fixed-top">
