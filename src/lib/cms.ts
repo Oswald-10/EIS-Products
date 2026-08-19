@@ -8,6 +8,15 @@ export type CatalogCategory = {
   updated_at: string;
 };
 
+export type CatalogProductVariant = {
+  id: string;
+  name: string;
+  image_url: string;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export type CatalogProduct = {
   id: string;
   category_id: string;
@@ -15,7 +24,8 @@ export type CatalogProduct = {
   slug: string;
   description: string;
   price: number;
-  image_url: string;
+  image_url: string; // fallback/main image
+  variants?: CatalogProductVariant[];
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -107,18 +117,40 @@ export const buildLegacyCatalogData = (legacyCategories: Record<string, any[]>) 
       return [];
     }
 
-    return items.map((item, itemIndex) => ({
-      id: `${category.slug}-${itemIndex + 1}`,
-      category_id: category.id,
-      name: String(item.title ?? `Product ${itemIndex + 1}`),
-      slug: slugify(String(item.title ?? `Product ${itemIndex + 1}`)),
-      description: String(item.subtitle ?? 'Product description'),
-      price: Number(String(item.price ?? '0').replace(/[^\d.]/g, '')) || 0,
-      image_url: String(item.image ?? ''),
-      is_active: true,
-      created_at: nowIso(),
-      updated_at: nowIso(),
-    } satisfies CatalogProduct));
+    return items.map((item, itemIndex) => {
+      const baseId = `${category.slug}-${itemIndex + 1}`;
+      const legacyImage = String(item.image ?? '');
+
+      // Migrate colorOptions from legacy data into variants when present
+      const legacyColorOptions = Array.isArray(item.colorOptions) ? item.colorOptions : undefined;
+
+      let variants: CatalogProductVariant[] | undefined = undefined;
+
+      if (legacyColorOptions && legacyColorOptions.length > 0) {
+        variants = legacyColorOptions.map((opt: any, vIndex: number) => ({
+          id: `${baseId}-v-${vIndex + 1}`,
+          name: String(opt.name ?? `Variant ${vIndex + 1}`),
+          image_url: String(opt.image ?? legacyImage ?? ''),
+          display_order: vIndex + 1,
+          created_at: nowIso(),
+          updated_at: nowIso(),
+        }));
+      }
+
+      return {
+        id: baseId,
+        category_id: category.id,
+        name: String(item.title ?? `Product ${itemIndex + 1}`),
+        slug: slugify(String(item.title ?? `Product ${itemIndex + 1}`)),
+        description: String(item.subtitle ?? 'Product description'),
+        price: Number(String(item.price ?? '0').replace(/[^\d.]/g, '')) || 0,
+        image_url: legacyImage || (variants && variants[0]?.image_url) || '',
+        variants,
+        is_active: true,
+        created_at: nowIso(),
+        updated_at: nowIso(),
+      } as CatalogProduct;
+    });
   });
 
   return {

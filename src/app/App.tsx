@@ -75,8 +75,8 @@ const getColorOptionsFromFolder = (folderPath: string) => {
     .map((key) => {
       const fileName = key.slice(folderPath.length + 1);
       const rawName = fileName.replace(/\.(png|jpe?g|webp)$/i, '').replace(/_/g, ' ');
-      // Normalize names like 'gcap navy blue' -> 'navy blue'
-      const cleaned = rawName.replace(/^gcap[\s-_]?/i, '').trim();
+      // Normalize names like 'gcap navy blue' -> 'navy blue' and remove leading 'half' used in some filenames
+      const cleaned = rawName.replace(/^gcap[\s-_]?/i, '').replace(/^half[\s-_]+/i, '').replace(/\bhalf\b/ig, '').trim();
       const displayName = cleaned
         .split(/\s+/)
         .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
@@ -1250,13 +1250,26 @@ export default function App() {
     if (dynamicCategory && catalogData.products.length > 0) {
       const itemsForCategory = catalogData.products
         .filter((product) => product.category_id === dynamicCategory.id && product.is_active)
-        .map((product) => ({
-          title: product.name,
-          subtitle: product.description,
-          image: product.image_url || cardImages.eisBanner,
-          price: `PHP ${Number(product.price).toLocaleString('en-US')}`,
-          galleryImages: [product.image_url || cardImages.eisBanner],
-        }));
+        .map((product) => {
+            const variants = product.variants ?? [];
+            const colorOptions = variants.length > 0
+              ? variants
+                  .slice()
+                  .sort((a, b) => a.display_order - b.display_order)
+                  .map((v) => ({ name: v.name, hex: colorFromFilename(v.name), image: v.image_url }))
+              : undefined;
+
+            const galleryImages = variants.length > 0 ? variants.map((v) => v.image_url) : [product.image_url || cardImages.eisBanner];
+
+            return {
+              title: product.name,
+              subtitle: product.description,
+              image: product.image_url || (variants[0] && variants[0].image_url) || cardImages.eisBanner,
+              price: `PHP ${Number(product.price).toLocaleString('en-US')}`,
+              galleryImages,
+              colorOptions,
+            };
+          });
 
       pageContent = (
         <CategoryPage

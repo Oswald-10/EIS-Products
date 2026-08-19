@@ -31,6 +31,19 @@ const fileToDataUrl = (file: File) =>
     reader.readAsDataURL(file);
   });
 
+const uploadFileToStorage = async (file: File, destPath: string) => {
+  if (isSupabaseConfigured && supabase) {
+    const bucketName = 'product-images';
+    const { error } = await supabase.storage.from(bucketName).upload(destPath, file, { cacheControl: '3600', upsert: false });
+    if (error) throw new Error(error.message);
+    const { data } = supabase.storage.from(bucketName).getPublicUrl(destPath);
+    return data.publicUrl ?? '';
+  }
+
+  // fallback: data URL
+  return await fileToDataUrl(file);
+};
+
 const getInitialSession = () => {
   if (typeof window === 'undefined') {
     return null;
@@ -70,6 +83,7 @@ export function AdminPanel({
     price: string;
     category_id: string;
     image_url: string;
+    variants: Array<{ id?: string; name: string; image_url: string; display_order: number }>;
     is_active: boolean;
   }>({
     name: '',
@@ -77,6 +91,7 @@ export function AdminPanel({
     price: '',
     category_id: '',
     image_url: '',
+    variants: [],
     is_active: true,
   });
   const [categoryForm, setCategoryForm] = useState<{
@@ -223,7 +238,7 @@ export function AdminPanel({
     setAuthError('');
   };
 
-  const handleImageSelection = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelection = async (event: React.ChangeEvent<HTMLInputElement>, variantIndex?: number) => {
     const file = event.target.files?.[0];
     if (!file) {
       return;
@@ -244,23 +259,17 @@ export function AdminPanel({
     setAuthError('');
 
     try {
-      if (isSupabaseConfigured && supabase) {
-        const bucketName = 'product-images';
-        const path = `products/${Date.now()}-${slugify(file.name)}`;
-        const { error } = await supabase.storage.from(bucketName).upload(path, file, {
-          cacheControl: '3600',
-          upsert: false,
+      const destPath = `products/${Date.now()}-${slugify(file.name)}`;
+      const uploadedUrl = await uploadFileToStorage(file, destPath);
+
+      if (typeof variantIndex === 'number') {
+        setProductForm((previous) => {
+          const nextVariants = [...previous.variants];
+          nextVariants[variantIndex] = { ...nextVariants[variantIndex], image_url: uploadedUrl };
+          return { ...previous, variants: nextVariants };
         });
-
-        if (error) {
-          throw new Error(error.message);
-        }
-
-        const { data } = supabase.storage.from(bucketName).getPublicUrl(path);
-        setProductForm((previous) => ({ ...previous, image_url: data.publicUrl ?? '' }));
       } else {
-        const dataUrl = await fileToDataUrl(file);
-        setProductForm((previous) => ({ ...previous, image_url: dataUrl }));
+        setProductForm((previous) => ({ ...previous, image_url: uploadedUrl }));
       }
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : 'Image upload failed.');
@@ -276,6 +285,7 @@ export function AdminPanel({
       price: '',
       category_id: categories[0]?.id ?? '',
       image_url: '',
+      variants: [],
       is_active: true,
     });
     setPendingImageFileName('');
@@ -312,22 +322,31 @@ export function AdminPanel({
 
     try {
       const nextCatalog = { ...currentCatalog };
+      const productId = productForm.id ?? makeId('product');
+
+      const normalizedVariants = productForm.variants
+        .map((v, idx) => ({
+          id: v.id ?? `${productId}-v-${idx + 1}`,
+          name: v.name.trim() || `Variant ${idx + 1}`,
+          image_url: v.image_url || '',
+          display_order: v.display_order || idx + 1,
+          created_at: v.id ? nextCatalog.products.find((p) => p.id === productForm.id)?.variants?.find((vv) => vv.id === v.id)?.created_at ?? new Date().toISOString() : new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }));
+
       const normalizedProduct = {
-        id: productForm.id ?? makeId('product'),
+        id: productId,
         category_id: productForm.category_id,
         name: productForm.name.trim(),
-        slug: ensureUniqueProductSlug(
-          nextCatalog,
-          productForm.name.trim(),
-          productForm.id,
-        ),
+        slug: ensureUniqueProductSlug(nextCatalog, productForm.name.trim(), productForm.id),
         description: productForm.description.trim() || 'No description provided.',
         price: Number(productForm.price),
-        image_url: productForm.image_url || categories.find((category) => category.id === productForm.category_id)?.name ? 'https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=900&q=80' : '',
+        image_url: productForm.image_url || normalizedVariants[0]?.image_url || '',
+        variants: normalizedVariants.length > 0 ? normalizedVariants : undefined,
         is_active: productForm.is_active,
         created_at: productForm.id ? nextCatalog.products.find((entry) => entry.id === productForm.id)?.created_at ?? new Date().toISOString() : new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      } satisfies CatalogProduct;
+      } as CatalogProduct;
 
       const existingIndex = nextCatalog.products.findIndex((entry) => entry.id === productForm.id);
       if (existingIndex >= 0) {
@@ -354,6 +373,7 @@ export function AdminPanel({
       price: String(product.price),
       category_id: product.category_id,
       image_url: product.image_url,
+      variants: (product.variants ?? []).map((v) => ({ id: v.id, name: v.name, image_url: v.image_url, display_order: v.display_order })),
       is_active: product.is_active,
     });
     setActiveTab('products');
@@ -575,6 +595,37 @@ export function AdminPanel({
                       </div>
 
                       <form onSubmit={handleProductSubmit} className="row g-3 mb-4">
+                        <div className="col-12">
+                          <h5 className="mb-2">Variants (optional)</h5>
+                          <div className="mb-3">
+                            {(productForm.variants || []).map((variant, idx) => (
+                              <div key={variant.id ?? idx} className="d-flex gap-2 align-items-start mb-2">
+                                <input
+                                  className="form-control"
+                                  style={{ maxWidth: 240 }}
+                                  value={variant.name}
+                                  placeholder={`Variant name`}
+                                  onChange={(e) => setProductForm((prev) => {
+                                    const next = { ...prev };
+                                    next.variants = [...next.variants];
+                                    next.variants[idx] = { ...next.variants[idx], name: e.target.value };
+                                    return next;
+                                  })}
+                                />
+                                <input type="file" className="form-control" accept="image/png,image/jpeg,image/webp" onChange={(e) => handleImageSelection(e, idx)} />
+                                <button type="button" className="btn btn-outline-danger" onClick={() => setProductForm((prev) => ({ ...prev, variants: prev.variants.filter((_, i) => i !== idx) }))}>
+                                  Remove
+                                </button>
+                              </div>
+                            ))}
+
+                            <div>
+                              <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setProductForm((prev) => ({ ...prev, variants: [...prev.variants, { name: '', image_url: '', display_order: prev.variants.length + 1 }] }))}>
+                                Add Variant
+                              </button>
+                            </div>
+                          </div>
+                        </div>
                         <div className="col-md-6">
                           <label className="form-label">Product name</label>
                           <input
@@ -649,6 +700,20 @@ export function AdminPanel({
                         </div>
                       ) : null}
 
+                      {productForm.variants && productForm.variants.length > 0 ? (
+                        <div className="mb-4">
+                          <h6 className="mb-2">Variant previews</h6>
+                          <div className="d-flex flex-wrap gap-2">
+                            {productForm.variants.map((v, i) => (
+                              <div key={v.id ?? i} className="text-center" style={{ width: 100 }}>
+                                {v.image_url ? <img src={v.image_url} alt={v.name} style={{ width: 100, height: 80, objectFit: 'cover', borderRadius: 6 }} /> : <div className="bg-light border" style={{ width: 100, height: 80 }} />}
+                                <div className="small text-muted mt-1">{v.name || 'Unnamed'}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+
                       <div className="table-responsive">
                         <table className="table align-middle">
                           <thead>
@@ -674,12 +739,14 @@ export function AdminPanel({
                                 return (
                                   <tr key={product.id}>
                                     <td>
-                                      {product.image_url ? (
-                                        <img src={product.image_url} alt={product.name} style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px' }} />
-                                      ) : (
-                                        <div className="bg-light border rounded" style={{ width: '60px', height: '60px' }} />
-                                      )}
-                                    </td>
+                                          {product.variants && product.variants.length > 0 ? (
+                                            <img src={product.variants[0].image_url} alt={product.name} style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px' }} />
+                                          ) : product.image_url ? (
+                                            <img src={product.image_url} alt={product.name} style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px' }} />
+                                          ) : (
+                                            <div className="bg-light border rounded" style={{ width: '60px', height: '60px' }} />
+                                          )}
+                                        </td>
                                     <td>
                                       <div className="fw-semibold">{product.name}</div>
                                       <small className="text-muted">{product.slug}</small>

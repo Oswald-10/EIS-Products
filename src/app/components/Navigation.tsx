@@ -23,7 +23,8 @@ const fallbackCategories = [
 
 export function Navigation({ onSearchOpen, onPhoneClick, categories }: NavigationProps) {
   const [navOpen, setNavOpen] = useState(false);
-  const navItems = categories && categories.length > 0 ? [{ name: 'Home', slug: 'home' }, ...categories, { name: 'About Us', slug: 'about' }] : fallbackCategories;
+  // Always render the original top-level categories in the original order
+  const navItems = fallbackCategories;
 
   const toggleNav = () => setNavOpen((current) => !current);
   const closeNav = () => setNavOpen(false);
