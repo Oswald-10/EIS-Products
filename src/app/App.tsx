@@ -1211,7 +1211,17 @@ export default function App() {
     </div>
   ) : null;
 
-  let pageContent = <HomePage cardImages={cardImages} />;
+  // Merge admin-overrides for homepage images (if present in catalogData) with the default cardImages
+  const effectiveCardImages = { ...cardImages } as Record<string, string>;
+  if (catalogData.homepageImages && Array.isArray(catalogData.homepageImages)) {
+    for (const hp of catalogData.homepageImages) {
+      if (hp && hp.key && typeof hp.image_url === 'string' && hp.image_url) {
+        effectiveCardImages[hp.key] = hp.image_url;
+      }
+    }
+  }
+
+  let pageContent = <HomePage cardImages={effectiveCardImages} />;
 
   if (page === 'admin') {
     pageContent = (
@@ -1223,6 +1233,7 @@ export default function App() {
           setPage('home');
           window.location.hash = '#home';
         }}
+        cardImages={cardImages}
       />
     );
   } else if (page === 'drinkware') {
@@ -1288,7 +1299,7 @@ export default function App() {
 
   return (
     <div className="d-flex flex-column min-vh-100">
-      <Navigation onSearchOpen={openSearch} onPhoneClick={openInfoPage} categories={publicCategories.map((category) => ({ name: category.name, slug: category.slug }))} />
+      <Navigation onSearchOpen={openSearch} onPhoneClick={openInfoPage} />
       {searchOverlay}
       {pageContent}
     </div>

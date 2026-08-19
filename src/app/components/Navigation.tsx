@@ -5,10 +5,9 @@ import eisLogo from '../../assets/images/EIS_LOGO.png';
 interface NavigationProps {
   onSearchOpen: () => void;
   onPhoneClick: () => void;
-  categories?: Array<{ name: string; slug: string }>;
 }
 
-const fallbackCategories = [
+const navItems = [
   { name: 'Home', slug: 'home' },
   { name: 'Drinkwares', slug: 'drinkware' },
   { name: 'Kitchenwares', slug: 'kitchenware' },
@@ -21,11 +20,8 @@ const fallbackCategories = [
   { name: 'About Us', slug: 'about' },
 ];
 
-export function Navigation({ onSearchOpen, onPhoneClick, categories }: NavigationProps) {
+export function Navigation({ onSearchOpen, onPhoneClick }: NavigationProps) {
   const [navOpen, setNavOpen] = useState(false);
-  // Always render the original top-level categories in the original order
-  const navItems = fallbackCategories;
-
   const toggleNav = () => setNavOpen((current) => !current);
   const closeNav = () => setNavOpen(false);
 

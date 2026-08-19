@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { CATALOG_STORAGE_KEY, slugify } from '../../lib/cms';
 
 export interface CategoryItem {
   title: string;
@@ -55,7 +56,34 @@ export function CategoryPage({
     }
   }, [initialSelectedItemTitle, items]);
 
-  const images = sampleImages?.filter((src) => typeof src === 'string') ?? items.map((item) => item.image).filter((src) => typeof src === 'string');
+  // Allow admin-managed category sample images (stored in local catalog) to override the hardcoded sampleImages.
+  let overriddenSampleImages: string[] | undefined = undefined;
+  try {
+    if (typeof window !== 'undefined') {
+      const raw = window.localStorage.getItem(CATALOG_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const slug = slugify(title);
+        // Find category by slug or by name similarity
+        const category = (parsed.categories ?? []).find((c: any) => c.slug === slug || c.slug === `${slug}s` || (c.name || '').toLowerCase().includes(title.toLowerCase()) || title.toLowerCase().includes((c.name || '').toLowerCase()));
+        if (category && Array.isArray(parsed.categorySampleImages)) {
+          const found = parsed.categorySampleImages
+            .filter((ci: any) => ci.category_id === category.id)
+            .sort((a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0))
+            .map((ci: any) => ci.image_url)
+            .filter((u: any) => typeof u === 'string');
+          if (found.length > 0) overriddenSampleImages = found;
+        }
+      }
+    }
+  } catch (e) {
+    // ignore parsing errors
+    overriddenSampleImages = undefined;
+  }
+
+  const images = (overriddenSampleImages && overriddenSampleImages.length > 0)
+    ? overriddenSampleImages
+    : sampleImages?.filter((src) => typeof src === 'string') ?? items.map((item) => item.image).filter((src) => typeof src === 'string');
   const secondarySlides = secondaryImages?.filter((src) => typeof src === 'string') ?? [];
 
   const handleSelectItem = (item: CategoryItem) => {

@@ -31,9 +31,29 @@ export type CatalogProduct = {
   updated_at: string;
 };
 
+export type HomepageImage = {
+  id: string;
+  key: string; // e.g. eisBanner, caps, toteBags
+  image_url: string;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CategorySampleImage = {
+  id: string;
+  category_id: string;
+  image_url: string;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export type CatalogData = {
   categories: CatalogCategory[];
   products: CatalogProduct[];
+  homepageImages?: HomepageImage[];
+  categorySampleImages?: CategorySampleImage[];
   updated_at: string;
 };
 
@@ -156,6 +176,8 @@ export const buildLegacyCatalogData = (legacyCategories: Record<string, any[]>) 
   return {
     categories: categoryEntries,
     products: productEntries,
+    homepageImages: [],
+    categorySampleImages: [],
     updated_at: nowIso(),
   } satisfies CatalogData;
 };
@@ -163,6 +185,8 @@ export const buildLegacyCatalogData = (legacyCategories: Record<string, any[]>) 
 export const createBlankCatalog = () => ({
   categories: [],
   products: [],
+  homepageImages: [],
+  categorySampleImages: [],
   updated_at: nowIso(),
 } satisfies CatalogData);
 

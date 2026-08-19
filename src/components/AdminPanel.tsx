@@ -63,16 +63,18 @@ export function AdminPanel({
   catalogData,
   onCatalogChange,
   onBackToSite,
+  cardImages,
 }: {
   catalogData: CatalogData;
   onCatalogChange: (next: CatalogData) => void;
   onBackToSite: () => void;
+  cardImages?: Record<string, string>;
 }) {
   const [authenticated, setAuthenticated] = useState<boolean>(Boolean(getInitialSession()));
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
   const [loginData, setLoginData] = useState({ email: '', password: '' });
-  const [activeTab, setActiveTab] = useState<'products' | 'categories'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'website'>('products');
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [currentCatalog, setCurrentCatalog] = useState<CatalogData>(catalogData);
@@ -539,6 +541,13 @@ export function AdminPanel({
                   >
                     Categories
                   </button>
+                  <button
+                    type="button"
+                    className={`btn text-start ${activeTab === 'website' ? 'btn-dark' : 'btn-outline-secondary'}`}
+                    onClick={() => setActiveTab('website')}
+                  >
+                    Website Images
+                  </button>
                   <button type="button" className="btn btn-outline-dark" onClick={onBackToSite}>
                     View website
                   </button>
@@ -779,7 +788,7 @@ export function AdminPanel({
                   </div>
                 </div>
               </div>
-            ) : (
+            ) : activeTab === 'categories' ? (
               <div className="card border-0 shadow-sm">
                 <div className="card-body p-4">
                   <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
@@ -874,6 +883,78 @@ export function AdminPanel({
                         )}
                       </tbody>
                     </table>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="card border-0 shadow-sm">
+                <div className="card-body p-4">
+                  <h3 className="h4 mb-1">Website Images</h3>
+                  <p className="text-muted">Manage homepage and category sample images. Changes persist to the local CMS (and to Supabase when configured).</p>
+                  <hr />
+                  <h5>Homepage Images</h5>
+                  <div className="mb-3">
+                    {['eisBanner','caps','toteBags','businessCards','plannersNotebooks','tShirts','jackets','aprons','tumblers','pens','kitchenware','accessories'].map((key) => {
+                      const existing = (currentCatalog.homepageImages || []).find((h) => h.key === key);
+                      const preview = existing?.image_url ?? (cardImages && (cardImages as any)[key]) ?? '';
+                      return (
+                        <div key={key} className="d-flex align-items-center gap-3 mb-2">
+                          <div style={{ width: 120, height: 70, overflow: 'hidden', borderRadius: 6, border: '1px solid #e9ecef' }}>
+                            {preview ? <img src={preview} alt={key} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ width: '100%', height: '100%', background: '#f8f9fa' }} />}
+                          </div>
+                          <div className="flex-grow-1">
+                            <div className="small text-muted">{key}</div>
+                            <div className="mt-1">
+                              <input type="file" accept="image/*" onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                setIsUploadingImage(true);
+                                try {
+                                  const dest = `homepage/${Date.now()}-${slugify(file.name)}`;
+                                  const url = await uploadFileToStorage(file, dest);
+                                  const next = { ...currentCatalog } as CatalogData;
+                                  next.homepageImages = next.homepageImages || [];
+                                  const found = next.homepageImages.find((h) => h.key === key);
+                                  if (found) { found.image_url = url; found.updated_at = new Date().toISOString(); }
+                                  else { next.homepageImages.push({ id: makeId('hp'), key, image_url: url, display_order: (next.homepageImages.length||0)+1, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }); }
+                                  persistCatalog(next);
+                                } catch (err) {
+                                  setAuthError(err instanceof Error ? err.message : 'Upload failed');
+                                } finally { setIsUploadingImage(false); }
+                              }} />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <hr />
+                  <h5>Category Sample Images</h5>
+                  <div className="mb-3">
+                    <select className="form-select mb-2" onChange={(e) => setCategoryFilter(e.target.value)} value={categoryFilter}>
+                      <option value="all">Select a category</option>
+                      {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    {categoryFilter !== 'all' ? (
+                      <div>
+                        {(currentCatalog.categorySampleImages || []).filter((ci) => ci.category_id === categoryFilter).sort((a,b)=> (a.display_order||0)-(b.display_order||0)).map(ci => (
+                          <div key={ci.id} className="d-flex gap-3 align-items-center mb-2">
+                            <div style={{ width: 120, height: 70, overflow: 'hidden', borderRadius: 6, border: '1px solid #e9ecef' }}>
+                              <img src={ci.image_url} alt="sample" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            </div>
+                            <div className="flex-grow-1">
+                              <button className="btn btn-sm btn-outline-danger" onClick={() => { if (!confirm('Remove image?')) return; const next = { ...currentCatalog }; next.categorySampleImages = (next.categorySampleImages||[]).filter(x => x.id !== ci.id); persistCatalog(next); }}>Remove</button>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="mt-2">
+                          <input type="file" accept="image/*" onChange={async (e) => {
+                            const file = e.target.files?.[0]; if (!file) return; setIsUploadingImage(true);
+                            try { const dest = `category-sample/${Date.now()}-${slugify(file.name)}`; const url = await uploadFileToStorage(file, dest); const next = { ...currentCatalog }; next.categorySampleImages = next.categorySampleImages || []; next.categorySampleImages.push({ id: makeId('csi'), category_id: categoryFilter, image_url: url, display_order: (next.categorySampleImages.filter(x=>x.category_id===categoryFilter).length||0)+1, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }); persistCatalog(next); } catch (err) { setAuthError(err instanceof Error ? err.message : 'Upload failed'); } finally { setIsUploadingImage(false); } }} />
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </div>
