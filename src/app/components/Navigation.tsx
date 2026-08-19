@@ -5,10 +5,25 @@ import eisLogo from '../../assets/images/EIS_LOGO.png';
 interface NavigationProps {
   onSearchOpen: () => void;
   onPhoneClick: () => void;
+  categories?: Array<{ name: string; slug: string }>;
 }
 
-export function Navigation({ onSearchOpen, onPhoneClick }: NavigationProps) {
+const fallbackCategories = [
+  { name: 'Home', slug: 'home' },
+  { name: 'Drinkwares', slug: 'drinkware' },
+  { name: 'Kitchenwares', slug: 'kitchenware' },
+  { name: 'Umbrellas & Bags', slug: 'umbrellasAndBags' },
+  { name: 'Caps & Apparel', slug: 'capsAndApparel' },
+  { name: 'Notebooks & Pens', slug: 'notebooksAndPens' },
+  { name: 'Accessories', slug: 'accessories' },
+  { name: 'Digital & Large Format', slug: 'digital' },
+  { name: 'Sets & Bundles', slug: 'setsAndBundles' },
+  { name: 'About Us', slug: 'about' },
+];
+
+export function Navigation({ onSearchOpen, onPhoneClick, categories }: NavigationProps) {
   const [navOpen, setNavOpen] = useState(false);
+  const navItems = categories && categories.length > 0 ? [{ name: 'Home', slug: 'home' }, ...categories, { name: 'About Us', slug: 'about' }] : fallbackCategories;
 
   const toggleNav = () => setNavOpen((current) => !current);
   const closeNav = () => setNavOpen(false);
@@ -35,36 +50,14 @@ export function Navigation({ onSearchOpen, onPhoneClick }: NavigationProps) {
         </button>
         <div className={`collapse navbar-collapse${navOpen ? ' show' : ''}`} id="navbarNav">
           <ul className="navbar-nav mx-auto">
-            <li className="nav-item">
-              <a className="nav-link text-uppercase" href="#home" onClick={closeNav}>Home</a>
-            </li>
-            <li className="nav-item">
-              <a className="nav-link text-uppercase" href="#drinkware" onClick={closeNav}>Drinkwares</a>
-            </li>
-            <li className="nav-item">
-              <a className="nav-link text-uppercase" href="#kitchenware" onClick={closeNav}>Kitchenwares</a>
-            </li>
-            <li className="nav-item">
-              <a className="nav-link text-uppercase" href="#umbrellasAndBags" onClick={closeNav}>Umbrellas & Bags</a>
-            </li>
-            <li className="nav-item">
-              <a className="nav-link text-uppercase" href="#capsAndApparel" onClick={closeNav}>Caps & Apparel</a>
-            </li>
-            <li className="nav-item">
-              <a className="nav-link text-uppercase" href="#notebooksAndPens" onClick={closeNav}>Notebooks & Pens</a>
-            </li>
-            <li className="nav-item">
-              <a className="nav-link text-uppercase" href="#accessories" onClick={closeNav}>Accessories</a>
-            </li>
-            <li className="nav-item">
-              <a className="nav-link text-uppercase" href="#digital" onClick={closeNav}>Digital & Large Format</a>
-            </li>
-            <li className="nav-item">
-              <a className="nav-link text-uppercase" href="#setsAndBundles" onClick={closeNav}>Sets & Bundles</a>
-            </li>
-            <li className="nav-item">
-              <a className="nav-link text-uppercase" href="#about" onClick={closeNav}>About Us</a>
-            </li>
+            {navItems.map((item) => {
+              const href = item.slug === 'home' ? '#home' : `#${item.slug}`;
+              return (
+                <li key={item.slug} className="nav-item">
+                  <a className="nav-link text-uppercase" href={href} onClick={closeNav}>{item.name}</a>
+                </li>
+              );
+            })}
           </ul>
           <div className="d-flex gap-3 ms-auto d-md-none">
             <button className="btn btn-link text-dark" aria-label="Search" onClick={() => { onSearchOpen(); closeNav(); }}>

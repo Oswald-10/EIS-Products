@@ -13,6 +13,9 @@ import { DigitalAndLargeFormatPage } from './components/DigitalAndLargeFormatPag
 import { SetsAndBundlesPage } from './components/SetsAndBundlesPage';
 import { InfoPage } from './components/InfoPage';
 import { AboutUsPage } from './components/AboutUsPage';
+import { CategoryPage } from './components/CategoryPage';
+import { AdminPanel } from '../components/AdminPanel';
+import { buildPublicCategoryList, readCatalogData, type CatalogData } from '../lib/cms';
 
 const imageModules = import.meta.glob('/src/assets/images/**/*.{png,jpg,jpeg,webp}', { eager: true }) as Record<string, { default: string }>;
 const localImages = Object.fromEntries(
@@ -95,6 +98,29 @@ const firstImageInFolder = (folderPath: string, fallback: string) => {
 };
 
 const imageKeyByUrl = new Map(Object.entries(localImages).map(([key, value]) => [value, key]));
+
+const getRouteFromLocation = () => {
+  if (typeof window === 'undefined') {
+    return 'home';
+  }
+
+  const pathname = window.location.pathname;
+  const hash = window.location.hash;
+
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
+    return 'admin';
+  }
+
+  if (hash) {
+    return hash.replace(/^#/, '') || 'home';
+  }
+
+  if (pathname && pathname !== '/') {
+    return pathname.replace(/^\//, '').replace(/\//g, '-');
+  }
+
+  return 'home';
+};
 
 const getGalleryImagesFromImageUrl = (imageUrl: string) => {
   const imageKey = imageKeyByUrl.get(imageUrl);
@@ -1026,6 +1052,8 @@ const categories = {
 
 
 
+const initialCatalogData: CatalogData = readCatalogData(categories);
+
 const categoriesWithGallery = Object.fromEntries(
   Object.entries(categories).map(([categoryKey, items]) => [
     categoryKey,
@@ -1066,15 +1094,22 @@ const allSearchItems: SearchEntry[] = [
 ];
 
 export default function App() {
-  const [page, setPage] = useState<string>(() => window.location.hash.slice(1) || 'home');
+  const [catalogData, setCatalogData] = useState<CatalogData>(() => initialCatalogData);
+  const [page, setPage] = useState<string>(() => getRouteFromLocation());
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchSelectedItemTitle, setSearchSelectedItemTitle] = useState('');
 
+  const publicCategories = buildPublicCategoryList(catalogData);
+
   useEffect(() => {
-    const updatePage = () => setPage(window.location.hash.slice(1) || 'home');
+    const updatePage = () => setPage(getRouteFromLocation());
     window.addEventListener('hashchange', updatePage);
-    return () => window.removeEventListener('hashchange', updatePage);
+    window.addEventListener('popstate', updatePage);
+    return () => {
+      window.removeEventListener('hashchange', updatePage);
+      window.removeEventListener('popstate', updatePage);
+    };
   }, []);
 
   useEffect(() => {
@@ -1088,7 +1123,10 @@ export default function App() {
   }, [page]);
 
   const navigateToHash = (hash: string) => {
-    window.location.hash = hash;
+    const normalized = hash.startsWith('#') ? hash : `#${hash}`;
+    window.location.hash = normalized;
+    window.history.pushState({}, '', window.location.pathname + normalized);
+    setPage(hash.replace(/^#/, '') || 'home');
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   };
 
@@ -1098,7 +1136,7 @@ export default function App() {
   };
 
   const openInfoPage = () => {
-    navigateToHash('#info');
+    navigateToHash('info');
   };
 
   const closeSearch = () => {
@@ -1109,7 +1147,7 @@ export default function App() {
     setSearchOpen(false);
     setSearchTerm('');
     setSearchSelectedItemTitle(selected.title);
-    navigateToHash(`#${selected.page}`);
+    navigateToHash(selected.page);
   };
 
   const filteredSearchItems = searchTerm.trim()
@@ -1175,31 +1213,69 @@ export default function App() {
 
   let pageContent = <HomePage cardImages={cardImages} />;
 
-  if (page === 'drinkware') {
-    pageContent = <DrinkwarePage items={drinkwareItems} onBack={() => navigateToHash('#home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+  if (page === 'admin') {
+    pageContent = (
+      <AdminPanel
+        catalogData={catalogData}
+        onCatalogChange={setCatalogData}
+        onBackToSite={() => {
+          window.history.pushState({}, '', '/');
+          setPage('home');
+          window.location.hash = '#home';
+        }}
+      />
+    );
+  } else if (page === 'drinkware') {
+    pageContent = <DrinkwarePage items={drinkwareItems} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
   } else if (page === 'kitchenware') {
-    pageContent = <KitchenwarePage items={kitchenwareAllItems} onBack={() => navigateToHash('#home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+    pageContent = <KitchenwarePage items={kitchenwareAllItems} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
   } else if (page === 'umbrellasAndBags') {
-    pageContent = <UmbrellasAndBagsPage items={umbrellasAndBagsItems} onBack={() => navigateToHash('#home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+    pageContent = <UmbrellasAndBagsPage items={umbrellasAndBagsItems} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
   } else if (page === 'capsAndApparel') {
-    pageContent = <CapsAndApparelPage items={capsAndApparelItems} onBack={() => navigateToHash('#home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+    pageContent = <CapsAndApparelPage items={capsAndApparelItems} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
   } else if (page === 'notebooksAndPens') {
-    pageContent = <NotebooksAndPensPage items={notebooksAndPensItems} onBack={() => navigateToHash('#home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+    pageContent = <NotebooksAndPensPage items={notebooksAndPensItems} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
   } else if (page === 'accessories') {
-    pageContent = <AccessoriesPage items={accessoriesAllItems} onBack={() => navigateToHash('#home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+    pageContent = <AccessoriesPage items={accessoriesAllItems} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
   } else if (page === 'digital') {
-    pageContent = <DigitalAndLargeFormatPage items={digitalItems} onBack={() => navigateToHash('#home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+    pageContent = <DigitalAndLargeFormatPage items={digitalItems} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
   } else if (page === 'setsAndBundles') {
-    pageContent = <SetsAndBundlesPage items={setsAndBundlesItems} onBack={() => navigateToHash('#home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
+    pageContent = <SetsAndBundlesPage items={setsAndBundlesItems} onBack={() => navigateToHash('home')} initialSelectedItemTitle={searchSelectedItemTitle} />;
   } else if (page === 'about') {
     pageContent = <AboutUsPage />;
   } else if (page === 'info') {
     pageContent = <InfoPage image={localImages['info eis'] ?? cardImages.eisBanner} />;
+  } else {
+    const dynamicCategory = publicCategories.find((category) => category.slug === page);
+    if (dynamicCategory && catalogData.products.length > 0) {
+      const itemsForCategory = catalogData.products
+        .filter((product) => product.category_id === dynamicCategory.id && product.is_active)
+        .map((product) => ({
+          title: product.name,
+          subtitle: product.description,
+          image: product.image_url || cardImages.eisBanner,
+          price: `PHP ${Number(product.price).toLocaleString('en-US')}`,
+          galleryImages: [product.image_url || cardImages.eisBanner],
+        }));
+
+      pageContent = (
+        <CategoryPage
+          title={dynamicCategory.name}
+          subtitle="Browse products in this category."
+          items={itemsForCategory}
+          onBack={() => navigateToHash('home')}
+        />
+      );
+    }
+  }
+
+  if (page === 'admin') {
+    return pageContent;
   }
 
   return (
     <div className="d-flex flex-column min-vh-100">
-      <Navigation onSearchOpen={openSearch} onPhoneClick={openInfoPage} />
+      <Navigation onSearchOpen={openSearch} onPhoneClick={openInfoPage} categories={publicCategories.map((category) => ({ name: category.name, slug: category.slug }))} />
       {searchOverlay}
       {pageContent}
     </div>
