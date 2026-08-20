@@ -267,10 +267,47 @@ export function AdminPanel({
     });
   }, [products, searchTerm, categoryFilter]);
 
-  const persistCatalog = (nextCatalog: CatalogData) => {
+  const persistCatalogToSupabase = async (nextCatalog: CatalogData) => {
+    if (!isSupabaseConfigured || !supabase) {
+      return;
+    }
+
+    try {
+      const categoriesToPersist = nextCatalog.categories.map((category) => ({
+        id: category.id,
+        name: category.name,
+        slug: category.slug,
+        display_order: category.display_order,
+        is_active: category.is_active,
+        created_at: category.created_at,
+        updated_at: category.updated_at,
+      }));
+
+      const productsToPersist = nextCatalog.products.map((product) => ({
+        id: product.id,
+        category_id: product.category_id,
+        name: product.name,
+        slug: product.slug,
+        description: product.description,
+        price: product.price,
+        image_url: product.image_url,
+        is_active: product.is_active,
+        created_at: product.created_at,
+        updated_at: product.updated_at,
+      }));
+
+      await supabase.from('categories').upsert(categoriesToPersist, { onConflict: 'id' });
+      await supabase.from('products').upsert(productsToPersist, { onConflict: 'id' });
+    } catch (error) {
+      console.error('Failed to sync catalog to Supabase', error);
+    }
+  };
+
+  const persistCatalog = async (nextCatalog: CatalogData) => {
     setCurrentCatalog(nextCatalog);
     writeCatalogData(nextCatalog);
     onCatalogChange(nextCatalog);
+    await persistCatalogToSupabase(nextCatalog);
   };
 
   const saveSession = (email: string) => {
@@ -464,7 +501,7 @@ export function AdminPanel({
       }
 
       nextCatalog.updated_at = new Date().toISOString();
-      persistCatalog(nextCatalog);
+      await persistCatalog(nextCatalog);
       resetProductForm();
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : 'Failed to save the product.');
@@ -487,13 +524,21 @@ export function AdminPanel({
     setActiveTab('products');
   };
 
-  const handleDeleteProduct = (productId: string) => {
+  const handleDeleteProduct = async (productId: string) => {
     if (!window.confirm('Are you sure you want to delete this product?')) {
       return;
     }
 
     const nextCatalog = { ...currentCatalog, products: currentCatalog.products.filter((product) => product.id !== productId) };
-    persistCatalog(nextCatalog);
+    await persistCatalog(nextCatalog);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('products').delete().eq('id', productId);
+      } catch (error) {
+        console.error('Failed to delete product from Supabase', error);
+      }
+    }
   };
 
   const handleCategorySubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -532,7 +577,7 @@ export function AdminPanel({
       }
 
       nextCatalog.updated_at = new Date().toISOString();
-      persistCatalog(nextCatalog);
+      await persistCatalog(nextCatalog);
       resetCategoryForm();
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : 'Failed to save the category.');
@@ -551,7 +596,7 @@ export function AdminPanel({
     setActiveTab('categories');
   };
 
-  const handleDeleteCategory = (categoryId: string) => {
+  const handleDeleteCategory = async (categoryId: string) => {
     if (!window.confirm('Are you sure you want to delete this category? This will also remove products assigned to it.')) {
       return;
     }
@@ -561,7 +606,16 @@ export function AdminPanel({
       categories: currentCatalog.categories.filter((category) => category.id !== categoryId),
       products: currentCatalog.products.filter((product) => product.category_id !== categoryId),
     };
-    persistCatalog(nextCatalog);
+    await persistCatalog(nextCatalog);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('categories').delete().eq('id', categoryId);
+        await supabase.from('products').delete().eq('category_id', categoryId);
+      } catch (error) {
+        console.error('Failed to delete category from Supabase', error);
+      }
+    }
   };
 
   const canRenderLogin = !authenticated;

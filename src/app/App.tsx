@@ -1376,12 +1376,19 @@ export default function App() {
             };
           });
 
+      const categorySampleImages = (catalogData.categorySampleImages ?? [])
+        .filter((sample) => sample.category_id === dynamicCategory.id)
+        .sort((left, right) => (left.display_order ?? 0) - (right.display_order ?? 0))
+        .map((sample) => sample.image_url)
+        .filter((imageUrl) => typeof imageUrl === 'string' && imageUrl.length > 0);
+
       pageContent = (
         <CategoryPage
           title={dynamicCategory.name}
           subtitle="Browse products in this category."
           items={itemsForCategory}
           onBack={() => navigateToHash('home')}
+          sampleImages={categorySampleImages.length > 0 ? categorySampleImages : undefined}
         />
       );
     }

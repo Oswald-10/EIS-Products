@@ -1,3 +1,5 @@
+import { isSupabaseConfigured } from './supabase';
+
 export type CatalogCategory = {
   id: string;
   name: string;
@@ -89,6 +91,13 @@ const safeRead = () => {
 };
 
 export const readCatalogData = (legacyCategories: Record<string, any[]>) => {
+  // The browser must not act as the source of truth when Supabase is configured.
+  // A private/incognito window has no shared localStorage state, so preference for
+  // local browser data causes admin updates to appear only in the browser that saved them.
+  if (isSupabaseConfigured) {
+    return buildLegacyCatalogData(legacyCategories);
+  }
+
   const stored = safeRead();
   if (stored && Array.isArray(stored.categories) && Array.isArray(stored.products)) {
     return stored as CatalogData;
