@@ -15,7 +15,7 @@ import { InfoPage } from './components/InfoPage';
 import { AboutUsPage } from './components/AboutUsPage';
 import { CategoryPage } from './components/CategoryPage';
 import { AdminPanel } from '../components/AdminPanel';
-import { buildPublicCategoryList, readCatalogData, writeCatalogData, ensureCanonicalCategories, getProductsForCategory, getCategoryBySlug, type CatalogData } from '../lib/cms';
+import { buildPublicCategoryList, readCatalogData, writeCatalogData, ensureCanonicalCategories, getProductsForCategory, getCategoryBySlug, createBlankCatalog, type CatalogData } from '../lib/cms';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const imageModules = import.meta.glob('/src/assets/images/**/*.{png,jpg,jpeg,webp}', { eager: true }) as Record<string, { default: string }>;
@@ -1055,6 +1055,74 @@ const categories = {
 
 const initialCatalogData: CatalogData = readCatalogData(categories);
 
+const fetchCatalogFromSupabase = async (): Promise<CatalogData | null> => {
+  if (!isSupabaseConfigured || !supabase) {
+    return null;
+  }
+
+  const [{ data: categories, error: categoriesError }, { data: products, error: productsError }, { data: homepageImages, error: homepageImagesError }, { data: categorySampleImages, error: categorySampleImagesError }] = await Promise.all([
+    supabase.from('categories').select('*').order('display_order', { ascending: true }),
+    supabase.from('products').select('*').order('created_at', { ascending: true }),
+    supabase.from('homepage_images').select('*').order('display_order', { ascending: true }),
+    supabase.from('category_sample_images').select('*').order('display_order', { ascending: true }),
+  ]);
+
+  if (categoriesError) throw categoriesError;
+  if (productsError) throw productsError;
+  if (homepageImagesError) throw homepageImagesError;
+  if (categorySampleImagesError) throw categorySampleImagesError;
+
+  const mappedCategories = (categories ?? []).map((c: any) => ({
+    id: String(c.id),
+    name: c.name,
+    slug: c.slug,
+    display_order: c.display_order ?? 1,
+    is_active: Boolean(c.is_active),
+    created_at: c.created_at,
+    updated_at: c.updated_at,
+  }));
+
+  const mappedProducts = (products ?? []).map((p: any) => ({
+    id: String(p.id),
+    category_id: String(p.category_id),
+    name: p.name,
+    slug: p.slug,
+    description: p.description ?? '',
+    price: Number(p.price ?? 0),
+    image_url: p.image_url ?? '',
+    variants: Array.isArray(p.variants) ? p.variants : [],
+    is_active: Boolean(p.is_active),
+    created_at: p.created_at,
+    updated_at: p.updated_at,
+  }));
+
+  const mappedHomepageImages = (homepageImages ?? []).map((image: any) => ({
+    id: String(image.id),
+    key: String(image.key ?? ''),
+    image_url: String(image.image_url ?? ''),
+    display_order: Number(image.display_order ?? 0),
+    created_at: image.created_at,
+    updated_at: image.updated_at,
+  }));
+
+  const mappedCategorySampleImages = (categorySampleImages ?? []).map((image: any) => ({
+    id: String(image.id),
+    category_id: String(image.category_id),
+    image_url: String(image.image_url ?? ''),
+    display_order: Number(image.display_order ?? 0),
+    created_at: image.created_at,
+    updated_at: image.updated_at,
+  }));
+
+  return ensureCanonicalCategories({
+    categories: mappedCategories,
+    products: mappedProducts,
+    homepageImages: mappedHomepageImages,
+    categorySampleImages: mappedCategorySampleImages,
+    updated_at: new Date().toISOString(),
+  });
+};
+
 const categoriesWithGallery = Object.fromEntries(
   Object.entries(categories).map(([categoryKey, items]) => [
     categoryKey,
@@ -1095,7 +1163,7 @@ const allSearchItems: SearchEntry[] = [
 ];
 
 export default function App() {
-  const [catalogData, setCatalogData] = useState<CatalogData>(() => initialCatalogData);
+  const [catalogData, setCatalogData] = useState<CatalogData>(() => (isSupabaseConfigured ? createBlankCatalog() : initialCatalogData));
   const [page, setPage] = useState<string>(() => getRouteFromLocation());
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -1123,74 +1191,36 @@ export default function App() {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [page]);
 
-  // Fetch live catalog from Supabase when configured and merge into catalogData.
+  // Fetch live catalog from Supabase when configured and treat it as the authoritative source.
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
     let mounted = true;
 
     (async () => {
       try {
-        const { data: categories, error: catErr } = await supabase
-          .from('categories')
-          .select('*')
-          .order('display_order', { ascending: true });
+        const liveCatalog = await fetchCatalogFromSupabase();
+        if (!mounted || !liveCatalog) {
+          return;
+        }
 
-        const { data: products, error: prodErr } = await supabase
-          .from('products')
-          .select('*')
-          .order('created_at', { ascending: true });
+        const hasDbData = (liveCatalog.categories.length > 0) || (liveCatalog.products.length > 0) || (liveCatalog.homepageImages?.length ?? 0) > 0 || (liveCatalog.categorySampleImages?.length ?? 0) > 0;
 
-        if (catErr) throw catErr;
-        if (prodErr) throw prodErr;
-
-        const mappedCategories = (categories ?? []).map((c: any) => ({
-          id: String(c.id),
-          name: c.name,
-          slug: c.slug,
-          display_order: c.display_order ?? 1,
-          is_active: Boolean(c.is_active),
-          created_at: c.created_at,
-          updated_at: c.updated_at,
-        }));
-
-        const mappedProducts = (products ?? []).map((p: any) => ({
-          id: String(p.id),
-          category_id: String(p.category_id),
-          name: p.name,
-          slug: p.slug,
-          description: p.description ?? '',
-          price: Number(p.price ?? 0),
-          image_url: p.image_url ?? '',
-          variants: p.variants ?? [],
-          is_active: Boolean(p.is_active),
-          created_at: p.created_at,
-          updated_at: p.updated_at,
-        }));
-
-        const newCatalog = ensureCanonicalCategories({
-          categories: mappedCategories,
-          products: mappedProducts,
-          homepageImages: catalogData.homepageImages ?? [],
-          categorySampleImages: catalogData.categorySampleImages ?? [],
-          updated_at: new Date().toISOString(),
-        });
-
-        // Only override the local/legacy catalog if Supabase returned any categories or products.
-        // This prevents an empty DB (or missing tables) from wiping the in-repo static catalog.
-        const hasDbData = (Array.isArray(mappedCategories) && mappedCategories.length > 0) || (Array.isArray(mappedProducts) && mappedProducts.length > 0);
-
-        if (mounted && hasDbData) {
-          setCatalogData(newCatalog);
-          try { writeCatalogData(newCatalog); } catch { /* ignore */ }
+        if (hasDbData) {
+          setCatalogData(liveCatalog);
+          try {
+            writeCatalogData(liveCatalog);
+          } catch {
+            // optional cache only; do not block the public site
+          }
         } else {
-          // Keep existing catalogData (legacy static data) so the site remains functional when DB is empty.
-          // eslint-disable-next-line no-console
-          console.info('Supabase returned no categories/products; preserving local static catalog.');
+          const fallbackCatalog = initialCatalogData;
+          setCatalogData(fallbackCatalog);
         }
       } catch (err) {
-        // keep using legacy/local catalog if Supabase fetch fails
-        // eslint-disable-next-line no-console
         console.error('Failed to load Supabase catalog', err);
+        if (mounted) {
+          setCatalogData(initialCatalogData);
+        }
       }
     })();
 

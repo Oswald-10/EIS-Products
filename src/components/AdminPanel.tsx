@@ -272,42 +272,72 @@ export function AdminPanel({
       return;
     }
 
-    try {
-      const categoriesToPersist = nextCatalog.categories.map((category) => ({
-        id: category.id,
-        name: category.name,
-        slug: category.slug,
-        display_order: category.display_order,
-        is_active: category.is_active,
-        created_at: category.created_at,
-        updated_at: category.updated_at,
-      }));
-
-      const productsToPersist = nextCatalog.products.map((product) => ({
-        id: product.id,
-        category_id: product.category_id,
-        name: product.name,
-        slug: product.slug,
-        description: product.description,
-        price: product.price,
-        image_url: product.image_url,
-        is_active: product.is_active,
-        created_at: product.created_at,
-        updated_at: product.updated_at,
-      }));
-
-      await supabase.from('categories').upsert(categoriesToPersist, { onConflict: 'id' });
-      await supabase.from('products').upsert(productsToPersist, { onConflict: 'id' });
-    } catch (error) {
-      console.error('Failed to sync catalog to Supabase', error);
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData.user) {
+      throw new Error('Admin session expired or not authenticated. Please sign in again.');
     }
+
+    const categoriesToPersist = nextCatalog.categories.map((category) => ({
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      display_order: category.display_order,
+      is_active: category.is_active,
+      created_at: category.created_at,
+      updated_at: category.updated_at,
+    }));
+
+    const productsToPersist = nextCatalog.products.map((product) => ({
+      id: product.id,
+      category_id: product.category_id,
+      name: product.name,
+      slug: product.slug,
+      description: product.description,
+      price: product.price,
+      image_url: product.image_url,
+      variants: product.variants ?? [],
+      is_active: product.is_active,
+      created_at: product.created_at,
+      updated_at: product.updated_at,
+    }));
+
+    const homepageImagesToPersist = (nextCatalog.homepageImages ?? []).map((image) => ({
+      id: image.id,
+      key: image.key,
+      image_url: image.image_url,
+      display_order: image.display_order,
+      created_at: image.created_at,
+      updated_at: image.updated_at,
+    }));
+
+    const categorySampleImagesToPersist = (nextCatalog.categorySampleImages ?? []).map((image) => ({
+      id: image.id,
+      category_id: image.category_id,
+      image_url: image.image_url,
+      display_order: image.display_order,
+      created_at: image.created_at,
+      updated_at: image.updated_at,
+    }));
+
+    const [{ error: categoriesError }, { error: productsError }, { error: homepageImagesError }, { error: categorySampleImagesError }] = await Promise.all([
+      supabase.from('categories').upsert(categoriesToPersist, { onConflict: 'id' }),
+      supabase.from('products').upsert(productsToPersist, { onConflict: 'id' }),
+      supabase.from('homepage_images').upsert(homepageImagesToPersist, { onConflict: 'id' }),
+      supabase.from('category_sample_images').upsert(categorySampleImagesToPersist, { onConflict: 'id' }),
+    ]);
+
+    if (categoriesError) throw categoriesError;
+    if (productsError) throw productsError;
+    if (homepageImagesError) throw homepageImagesError;
+    if (categorySampleImagesError) throw categorySampleImagesError;
   };
 
   const persistCatalog = async (nextCatalog: CatalogData) => {
+    await persistCatalogToSupabase(nextCatalog);
     setCurrentCatalog(nextCatalog);
     writeCatalogData(nextCatalog);
     onCatalogChange(nextCatalog);
-    await persistCatalogToSupabase(nextCatalog);
+    return nextCatalog;
   };
 
   const saveSession = (email: string) => {
@@ -530,14 +560,16 @@ export function AdminPanel({
     }
 
     const nextCatalog = { ...currentCatalog, products: currentCatalog.products.filter((product) => product.id !== productId) };
-    await persistCatalog(nextCatalog);
-
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase.from('products').delete().eq('id', productId);
-      } catch (error) {
-        console.error('Failed to delete product from Supabase', error);
+    try {
+      if (isSupabaseConfigured && supabase) {
+        const { error } = await supabase.from('products').delete().eq('id', productId);
+        if (error) throw error;
       }
+      setCurrentCatalog(nextCatalog);
+      writeCatalogData(nextCatalog);
+      onCatalogChange(nextCatalog);
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Failed to delete product.');
     }
   };
 
@@ -606,15 +638,20 @@ export function AdminPanel({
       categories: currentCatalog.categories.filter((category) => category.id !== categoryId),
       products: currentCatalog.products.filter((product) => product.category_id !== categoryId),
     };
-    await persistCatalog(nextCatalog);
-
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase.from('categories').delete().eq('id', categoryId);
-        await supabase.from('products').delete().eq('category_id', categoryId);
-      } catch (error) {
-        console.error('Failed to delete category from Supabase', error);
+    try {
+      if (isSupabaseConfigured && supabase) {
+        const [{ error: categoryError }, { error: productsError }] = await Promise.all([
+          supabase.from('categories').delete().eq('id', categoryId),
+          supabase.from('products').delete().eq('category_id', categoryId),
+        ]);
+        if (categoryError) throw categoryError;
+        if (productsError) throw productsError;
       }
+      setCurrentCatalog(nextCatalog);
+      writeCatalogData(nextCatalog);
+      onCatalogChange(nextCatalog);
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Failed to delete category.');
     }
   };
 
@@ -1080,7 +1117,7 @@ export function AdminPanel({
                         if (typeof window !== 'undefined') window.localStorage.setItem('eis-supabase-image-bucket', found);
                         const next = { ...currentCatalog } as CatalogData;
                         (next as any).imageBucket = found;
-                        persistCatalog(next);
+                        await persistCatalog(next);
                         setAuthError(`Detected and set storage bucket to '${found}'. Please retry the upload.`);
                       } else {
                         setAuthError('Could not detect a usable bucket. Please confirm the Supabase project has a public storage bucket (e.g., product-images) and that environment variables are configured.');
@@ -1090,10 +1127,17 @@ export function AdminPanel({
                     }}>
                       Detect storage bucket
                     </button>
-                    <button type="button" className="btn btn-sm btn-outline-info" onClick={() => {
+                    <button type="button" className="btn btn-sm btn-outline-info" onClick={async () => {
                       // clear runtime override
                       if (typeof window !== 'undefined') window.localStorage.removeItem('eis-supabase-image-bucket');
-                      const next = { ...currentCatalog } as CatalogData; (next as any).imageBucket = undefined; persistCatalog(next); setAuthError('Cleared runtime storage bucket override.');
+                      const next = { ...currentCatalog } as CatalogData; (next as any).imageBucket = undefined;
+                      try {
+                        await persistCatalog(next);
+                      } catch (error) {
+                        setAuthError(error instanceof Error ? error.message : 'Failed to clear override.');
+                        return;
+                      }
+                      setAuthError('Cleared runtime storage bucket override.');
                     }}>
                       Clear override
                     </button>
@@ -1122,7 +1166,7 @@ export function AdminPanel({
                                   const found = next.homepageImages.find((h) => h.key === key);
                                   if (found) { found.image_url = url; found.updated_at = new Date().toISOString(); }
                                   else { next.homepageImages.push({ id: makeId('hp'), key, image_url: url, display_order: (next.homepageImages.length||0)+1, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }); }
-                                  persistCatalog(next);
+                                  await persistCatalog(next);
                                 } catch (err) {
                                   setAuthError(err instanceof Error ? err.message : 'Upload failed');
                                 } finally { setIsUploadingImage(false); }
@@ -1149,14 +1193,14 @@ export function AdminPanel({
                               <img src={ci.image_url} alt="sample" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                             </div>
                             <div className="flex-grow-1">
-                              <button className="btn btn-sm btn-outline-danger" onClick={() => { if (!confirm('Remove image?')) return; const next = { ...currentCatalog }; next.categorySampleImages = (next.categorySampleImages||[]).filter(x => x.id !== ci.id); persistCatalog(next); }}>Remove</button>
+                              <button className="btn btn-sm btn-outline-danger" onClick={async () => { if (!confirm('Remove image?')) return; const next = { ...currentCatalog }; next.categorySampleImages = (next.categorySampleImages||[]).filter(x => x.id !== ci.id); try { await persistCatalog(next); } catch (error) { setAuthError(error instanceof Error ? error.message : 'Failed to remove image.'); } }}>Remove</button>
                             </div>
                           </div>
                         ))}
                         <div className="mt-2">
                           <input type="file" accept="image/*" onChange={async (e) => {
                             const file = e.target.files?.[0]; if (!file) return; setIsUploadingImage(true);
-                            try { const dest = `category-sample/${Date.now()}-${slugify(file.name)}`; const url = await uploadFileToStorage(file, dest); const next = { ...currentCatalog }; next.categorySampleImages = next.categorySampleImages || []; next.categorySampleImages.push({ id: makeId('csi'), category_id: categoryFilter, image_url: url, display_order: (next.categorySampleImages.filter(x=>x.category_id===categoryFilter).length||0)+1, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }); persistCatalog(next); } catch (err) { setAuthError(err instanceof Error ? err.message : 'Upload failed'); } finally { setIsUploadingImage(false); } }} />
+                            try { const dest = `category-sample/${Date.now()}-${slugify(file.name)}`; const url = await uploadFileToStorage(file, dest); const next = { ...currentCatalog }; next.categorySampleImages = next.categorySampleImages || []; next.categorySampleImages.push({ id: makeId('csi'), category_id: categoryFilter, image_url: url, display_order: (next.categorySampleImages.filter(x=>x.category_id===categoryFilter).length||0)+1, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }); await persistCatalog(next); } catch (err) { setAuthError(err instanceof Error ? err.message : 'Upload failed'); } finally { setIsUploadingImage(false); } }} />
                         </div>
                       </div>
                     ) : null}
